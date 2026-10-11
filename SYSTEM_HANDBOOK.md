@@ -63,9 +63,11 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] CI 已接通并实测成功（OIDC，零密钥，一次部署约 4.5–5 分钟，含数据库迁移）
 - [x] 数据库链路已打通：RDS `arcade-ftw-db` + Alembic，迁移在 CI 里于滚动更新前执行
 - [x] 前端部署：S3 + CloudFront（站点与 API 同源），前端 CI 走 OIDC，真实浏览器验证三项全绿
-- [ ] AWS 剩余项（Secrets Manager 存放 API_KEY、自定义域名 + ACM）见 [aws/](./aws)
-- [ ] 前端目前只有一个冒烟状态页，**没有任何游戏 UI**
-- [ ] 数据库目前**只有 `players` / `scores` 两张表，且没有 API 使用**——只有链路，没有业务读写
+- [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染占位屏 + 倒计时；管理员可 pause / resume / finish / 跳节点
+- [ ] AWS 剩余项（Secrets Manager 保存密钥、自定义域名 + ACM）见 [aws/](./aws)
+- [ ] 前端仍是**占位屏**：没有真实游戏界面、没有题型渲染器
+- [ ] 题型注册表仍只有 `choice` 一个示例；题库无存储
+- [ ] 数据库仍**只有 `players` / `scores`**——登录会写 `players`，但没有接口用 `scores`
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
 
 ---

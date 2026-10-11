@@ -1,41 +1,58 @@
-# 状态机
+# 状态机与流程引擎
 
-实现：`arcade_ftw_be/app/engine.py` 的 `GameState`。
+实现：`arcade_ftw_be/app/engine.py`。流程配置：`app/flow.py`。
+
+## 决策：引擎自主推进
+
+**主线由引擎按时间自己推进，管理员只能干预。** 这是刻意的：
+
+- 现实里没人能手动按钮推完几十上百个节点；
+- 「所有人同时进行」要求推进时刻是**唯一权威**的，不能依赖某个人点得准。
+
+管理员的四个动作全部是**状态转换**，不是补丁：
+
+| 动作 | 效果 |
+|---|---|
+| `start` | `idle/finished → playing`，回到第 0 个节点 |
+| `pause` | `playing → paused`，**冻结剩余时间** |
+| `resume` | `paused → playing`，从冻结处继续 |
+| `finish` | `any → finished` |
+| `go/{index}` | 跳到任意节点；也是从 `finished` 复活的方式 |
 
 ## 阶段
 
 `idle → playing ⇄ paused → finished`
 
-```python
-class Phase(str, Enum):
-    IDLE = "idle"
-    PLAYING = "playing"
-    PAUSED = "paused"
-    FINISHED = "finished"
+## 三条时钟设计（都踩过坑）
+
+1. **单调时钟**：倒计时基于 `time.monotonic()`，宿主调系统时间不会让节目跳。
+2. **暂停 = 冻结剩余时间**，而不是挪动一个 deadline。这样暂停多久，恢复后的剩余时间都完全一致。
+3. **快照给的是 `remaining_ms`（时长），不是绝对截止时刻**。前端据此在本机换算倒计时——**机器时钟有偏差只会整体平移显示，不会改变节点长度**。
+
+## 快照字段（WS `state` 的 payload）
+
+```json
+{
+  "phase": "playing",
+  "index": 2,
+  "node_count": 6,
+  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 20 },
+  "remaining_ms": 16780,
+  "server_time_ms": 1791733393351
+}
 ```
 
-## 位置
+## 广播
 
-`current_index` 指向 `ROUND_FLOW` 中的当前节点；`current` 属性返回该节点（越界返回 `None`）。
+引擎每次状态变化都通知监听器，监听器把快照**扇出**给所有 WS 连接（`app/manager.py`）。这就是「所有人同步推进」的实现方式——不是每个客户端各自轮询。
 
-## 转移
+## 已知的坑（都已在代码与测试中体现）
 
-| 方法 | 效果 |
-|---|---|
-| `start()` | `→ playing`，`current_index = 0` |
-| `pause()` | `playing → paused` |
-| `resume()` | `paused → playing` |
-| `finish()` | `any → finished` |
-| `go_to(index)` | 跳转到任意节点（**管理员回退**用），越界忽略 |
-| `next()` | `current_index + 1` |
-| `snapshot()` | 供 WS 下发的状态快照 |
-
-## 设计约束
-
-- 管理员控制全部是**状态转换事件**，不要用 if/else 补丁。
-- 状态是**进程内内存态**：单进程运行，禁止多 worker；换 task 会清空（见手册红线 #3）。
+1. **新节点的广播必须带非零剩余时间**：最初 `_arm()` 是在守卫任务里延迟执行的，导致新节点广播出去时 `remaining_ms` 是 `0`，客户端会**永远卡在 0:00**。现在 `start()` / `go_to()` / 推进时都**先装填时钟再通知**，并有回归测试。
+2. **后台标签页的倒计时会冻结**：浏览器节流隐藏标签页的 `setInterval`，`now` 变旧 → 剩余时间**偏大且不动**。修法是 `visibilitychange` / `focus` 时立刻刷新（`useTicker`）。排查时不要误判为引擎问题——**先和服务端 `/api/game/state` 对拍**。
+3. **内存态**：引擎是进程内单例。单进程运行、禁止多 worker；**替换容器 = 重置整场节目**。
 
 ## 待定
 
-- 计时（`duration_sec`）到点自动推进：尚未实现
-- 玩家级状态（每人答案、得分）与全局状态的边界：尚未定
+- 玩家级状态（每人答案、得分）与全局状态的边界。
+- 节点结束是否需要「收尾动作」（例如 quiz 到点自动结算）。
