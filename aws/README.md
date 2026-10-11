@@ -60,9 +60,35 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 
 `.github/workflows/deploy.yml`：`push main` → 构建 → ECR → **拉线上 task definition 再改镜像**（不依赖仓库里的 `fixed-task-def.json`，避免 drift）→ `update-service` → 验证 `/health`。
 
-- 凭据目前用静态 AK/SK（沿用旧做法），文件内留了 OIDC 切换样板。
-- 用 `check-creds` 前置守卫：未配置 secret 时**只告警不失败**，避免 AWS 还没建就一片红。
-- `concurrency` 串行化，避免两次部署互相打断。
+**凭据：GitHub OIDC，零长期密钥（无任何 GitHub secret）。**
+
+栈里创建了：
+
+| 资源 | 值 |
+|---|---|
+| OIDC provider | `arn:aws:iam::866730904414:oidc-provider/token.actions.githubusercontent.com` |
+| 部署角色 | `arn:aws:iam::866730904414:role/arcade-ftw-github-deploy` |
+
+信任策略**精确锁定**到（两种写法都接受，且**均无通配符**）：
+
+```
+repo:pizzawithcola/arcade_ftw_be:ref:refs/heads/main
+repo:pizzawithcola@68038650/arcade_ftw_be@1414195943:ref:refs/heads/main
+```
+
+⚠️ **重要坑（实测）**：GitHub 现在在 OIDC subject 里带**不可变的数字 ID**，即
+`repo:<owner>@<ownerId>/<repo>@<repoId>:ref:refs/heads/<branch>`。
+只写人读形式 `repo:owner/repo:...` 会永远匹配不上，STS 返回
+`AccessDenied: Not authorized to perform sts:AssumeRoleWithWebIdentity`。
+排查方法：`aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity`，从 `userIdentity.principalId` 直接读出真实 subject。
+
+→ fork、其他仓库、PR 都**无法**冒充。权限仅限：推本 ECR 仓库、注册 task definition、更新本 service、`iam:PassRole` 到那两个 task role、读取 ALB。
+
+> **为什么不用静态密钥**：账号里唯一的凭据是 `AdministratorAccess` 的 `JamieLiu8`，而本 repo 是 **public**——把 admin 密钥放进公开仓库 secrets，等于把**整个账号**（含旧活动系统）悬在泄漏风险上。OIDC 从根上消除了这个风险。
+
+其他：`concurrency` 串行化，避免两次部署互相打断；`push` 与 `workflow_dispatch` 均可触发。
+
+**实测**：一次完整部署（run #5）**约 3 分 30 秒**——OIDC 鉴权 → 构建 → 推 ECR → 改 task def → `update-service` → 验证 `/health`。
 
 ## 红线
 
@@ -73,10 +99,11 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 ## 待办
 
 - [x] 目标账号 / 区域：`866730904414` / `ap-south-1`
-- [x] 部署 `infra/cloudformation.yml` → 栈 `arcade-ftw` 已 `CREATE_COMPLETE`
-- [ ] **推送首个镜像并把 `desiredCount` 提到 1**（当前为 0，服务尚不对外提供服务）
-- [ ] 配置 GitHub secrets（`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`）以接通 CI
+- [x] 部署 `infra/cloudformation.yml` → 栈 `arcade-ftw`（含 OIDC provider + 部署角色）
+- [x] 推送首个镜像并把 `desiredCount` 提到 1 —— 服务已对外可用
+- [x] 接通 CI —— 改用 **GitHub OIDC**，无需任何 GitHub secret
 - [ ] 建 Secrets Manager，把 `API_KEY` 从明文 env 迁走
 - [ ] 建 RDS + 引入 Alembic（数据库改动目前**无处可部署**）
 - [ ] 前端侧 CloudFront 分发（含 API 行为白名单 + 403/404 错误重写）
+- [ ] 考虑把 `arcade_ftw_be` 转为 private（目前 public）
 
