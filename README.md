@@ -25,7 +25,7 @@ flowchart LR
 | 路径 | 内容 |
 |---|---|
 | [SYSTEM_HANDBOOK.md](./SYSTEM_HANDBOOK.md) | 跨 session 共享 memory（**开工前必读**）|
-| [architecture/](./architecture) | 状态机语义、架构决策记录（ADR）|
+| [architecture/](./architecture) | 状态机语义、RDS 与迁移方案、架构决策记录（ADR）|
 | [protocol/](./protocol) | 前后端契约：WS 消息、题型定义 |
 | [aws/](./aws) | 资源清单、部署要点 |
 | [runbook/](./runbook) | 活动当天操作手册 |

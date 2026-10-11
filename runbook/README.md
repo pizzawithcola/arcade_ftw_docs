@@ -23,20 +23,27 @@
 ## 已知的部署操作
 
 ```bash
-# 部署基础设施（幂等）
-aws cloudformation deploy \
+# 常规部署：走 CI（push main 即可），约 3.5 分钟。下面是排障/首次建栈用的。
+
+# 基础设施（幂等；参数取值见 ../aws/README.md）
+aws cloudformation deploy --region ap-south-1 \
   --template-file infra/cloudformation.yml \
   --stack-name arcade-ftw \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides VpcId=... PublicSubnet1=... PublicSubnet2=... \
-                         TaskSubnet1=... TaskSubnet2=... ApiKey=...
+  --parameter-overrides VpcId=vpc-... PublicSubnet1=subnet-... PublicSubnet2=subnet-... \
+                         TaskSubnet1=subnet-... TaskSubnet2=subnet-... ApiKey=... DesiredCount=1
 
-# 查看服务与滚动状态
-aws ecs describe-services --cluster arcade-ftw-cluster --services arcade-ftw-service
+# 服务与滚动状态
+aws ecs describe-services --cluster arcade-ftw-cluster --services arcade-ftw-service --region ap-south-1
 
-# 看日志
+# 日志
 aws logs tail /ecs/arcade-ftw-backend --follow
+
+# 健康检查（大屏/API 域名）
+curl -s -w ' %{http_code} %{content_type}\n' http://arcade-ftw-alb-1071955694.ap-south-1.elb.amazonaws.com/health
 ```
 
-CI 是主路径（`push main` 自动部署）；上面的命令用于首次建栈和排障。
+> ⚠️ `cloudformation deploy` 会**按栈里存的参数值**收敛：如果曾用 `DesiredCount=0` 建栈、后来又手动把服务拉到 1，下一次 deploy **必须显式带 `DesiredCount=1`**，否则会把服务打回 0。
+
+排障要点见 [../aws/README.md](../aws/README.md) 的「排查手册」（CloudTrail 读 OIDC 失败、describe-stack-events 看栈失败）。
 
