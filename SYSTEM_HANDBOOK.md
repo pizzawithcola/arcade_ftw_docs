@@ -58,7 +58,9 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 - [ ] `SYSTEM_HANDBOOK.md` 在旧系统里叫 "香港 FTW"，本项目管理名已改为 `arcade_ftw`——旧文档 Part B 已过时（需用户同意才能改旧 repo）
 - [ ] `packages/shared`（机器可读的协议类型）尚未建；按旧手册 §11，起步用「TS 类型 + Pydantic 手写对应」，稳定后升级 JSON Schema
-- [ ] AWS 资源尚未创建（见 [aws/](./aws)）
+- [x] 后端 IaC（CloudFormation）+ CI workflow 已写好（**仅文件，尚未部署到 AWS**）——见 `arcade_ftw_be/infra/` 与 `arcade_ftw_be/.github/workflows/deploy.yml`
+- [ ] AWS 资源尚未创建（清单见 [aws/](./aws)）
+- [ ] 前端侧 CloudFront（含 API 行为白名单 + 403/404 错误重写）尚未做
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
 
 ---
