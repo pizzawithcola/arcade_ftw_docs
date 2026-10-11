@@ -1,7 +1,8 @@
 # RDS 与数据库迁移链路
 
-> **状态：proposed（待用户确认）**。本文件描述「让数据库改动也能一条命令部署」的方案。
-> 决策定稿后请更新状态与 [ADR 索引](./decisions/README.md)。
+> **状态：已实施并验证（2026-10-11）**。CI run #6 端到端成功：构建 → 推 ECR → 注册 revision → 一次性任务跑 `alembic upgrade head` → 滚动更新 → 验证 `/health` 与 `/health/db`，全程 **4 分 37 秒**。
+> CloudWatch 里可见迁移任务的输出：`Running upgrade -> 0d85f32b238d, initial players and scores`。
+> 决策已记入 [ADR 索引](./decisions/README.md)。
 
 ## 1. 目标
 
@@ -89,19 +90,40 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 | 风险 | 迁移失败会**阻断部署**（先于 update-service），这是刻意的 |
 | 回滚 | 代码可回滚；**迁移不可自动回滚**，需另写 downgrade 或手工处理 |
 
-## 5. 待定（需用户确认）
+## 5. 已定决策（实施的实际取值）
 
-1. **实例规格**：`db.t4g.micro`（Graviton，更便宜）还是与旧系统一致的 `db.t3.micro`？
-2. **迁移方式**：确认采用「CI 跑一次性 ECS 任务」？
-3. **连接方式**：确认 async SQLAlchemy + asyncpg？
-4. **首次迁移内容**：只建 `players` / `scores`，还是同时把房间/答题表也建起来？
+1. **实例规格**：`db.t4g.micro`（**不用** `db.t3.micro`）。
+2. **迁移方式**：CI 里跑**一次性 ECS 任务**（`run-task` + container override `["alembic","upgrade","head"]`），失败即中止、不动线上。
+3. **连接方式**：async SQLAlchemy 2 + asyncpg。
+4. **首个迁移**：只建 `players` 与长表 `scores`。
 
-## 6. 落地步骤（确认后执行）
+### 实测得到的细节
 
-- [ ] 模板加 RDS + 安全组 + 执行角色 SecretsManager 权限
-- [ ] 后端加 SQLAlchemy 2 async + asyncpg + Alembic，写首个 migration
-- [ ] `config.py` 拼装 DSN、加 `DB_*` 变量
-- [ ] CI 加「一次性迁移任务」步骤 + IAM 权限
-- [ ] 本地 docker-compose 起 Postgres，跑通迁移与回滚
-- [ ] 部署验证：`/health` + 一次真实读写冒烟
-- [ ] 回补 [aws/README.md](../aws/README.md) 与 [runbook](../runbook/README.md)
+| 项 | 实际值 |
+|---|---|
+| 实例 | `arcade-ftw-db`，PostgreSQL **16.15**，`PubliclyAccessible=false`，`MultiAZ=false`，存储加密 ✅，备份保留 7 天，删除保护 ✅ |
+| 子网组 | 复用现有 `default-vpc-0dda76b286c45fc27`（**未新建**，共享 VPC 未改动）|
+| 安全组 | `arcade-ftw-rds-sg`，5432 仅允许来自 `arcade-ftw-ecs-sg` |
+| 端点 | `arcade-ftw-db.ctao8iuy2toz.ap-south-1.rds.amazonaws.com:5432` |
+| 密钥 | RDS 托管，ARN `.../secret:rds!db-57437a62-...-iRC7r4`，JSON 键为 `['password','username']` |
+| 迁移 revision | `0d85f32b238d`（含可用的 `downgrade()`）|
+
+> ⚠️ **`EngineVersion` 必须给具体小版本**（如 `16.15`）——只写 `16` 会被 RDS 拒绝（`deprecated ... cannot be used to create new RDS DB instances`）。已做成参数便于将来升级。
+> ⚠️ **`PreferredBackupWindow` 只接受 `hh24:mi-hh24:mi`**，不带星期前缀；**维护窗口**才用 `ddd:hh24:mi-ddd:hh24:mi` 形式。
+
+## 6. 已完成
+
+- [x] 模板加 RDS + `arcade-ftw-rds-sg` + 执行角色 SecretsManager 权限 + 任务定义 `DB_*` env/secret
+- [x] 后端加 SQLAlchemy 2 async + asyncpg + Alembic，写首个 migration
+- [x] `config.py` 拼装 DSN、加 `DB_*` 变量
+- [x] CI 加「一次性迁移任务」步骤 + IAM 权限（`ecs:RunTask` / `ecs:DescribeTasks` / `iam:PassRole`）
+- [x] 本地 docker-compose 起 Postgres（宿主 **5433**，避开开发机自己的 5432），跑通迁移与回滚
+- [x] 部署验证：`/health` 与 `/health/db` 均 200
+- [x] 回补 [aws/README.md](../aws/README.md) 与 [runbook](../runbook/README.md)
+
+## 7. 已知限制
+
+- **迁移不可自动回滚**：代码能回滚，schema 不能。迁移脚本必须自带可用的 `downgrade()`，回滚靠人工决定。
+- 部署时间从 3.5 分钟增加到 **约 4.5–5 分钟**（多一次迁移任务）。
+- `players` / `scores` 目前**没有任何 API 使用**——本次只打通链路，业务读写留给后续。
+- 应用启动**不建表**，schema 只由迁移创建。

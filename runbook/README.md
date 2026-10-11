@@ -5,8 +5,9 @@
 ## 活动前
 
 - [ ] 后端部署到最新镜像，确认所有 task 健康
-- [ ] 前端产物已上线，`assets/index-*.js` 哈希确认更新
+- [ ] 确认 `curl <ALB>/health/db` 返回 200（**不能只看 `/health`**——它刻意不查库）
 - [ ] 数据库快照已建
+- [ ] 前端产物已上线，`assets/index-*.js` 哈希确认更新
 - [ ] 大屏（kiosk）自愈与硬重载已开启
 - [ ] 二维码登录链路实机验证
 
@@ -19,6 +20,23 @@
 
 - [ ] 数据备份 / 归档
 - [ ] 回补文档与本次事故记录
+
+## 数据库变更
+
+改动 schema 的常规路径：
+
+```bash
+# 本地
+docker compose up -d
+alembic revision --autogenerate -m "add xxx"
+# 检查生成的脚本，确认 downgrade() 可用
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
+pytest
+git push          # CI 会先跑迁移，成功后才滚动更新
+```
+
+> ⚠️ **迁移失败会阻断部署**（这是刻意的）：旧 revision 继续服务，不会出现「代码已上新、schema 未生效」。
+> ⚠️ **迁移不可自动回滚**：代码可以回滚，schema 不能。回滚需人工执行 `alembic downgrade`，且要先确认数据兼容。
 
 ## 已知的部署操作
 

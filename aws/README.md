@@ -23,7 +23,9 @@ IaC 模板：`arcade_ftw_be/infra/cloudformation.yml` —— 只覆盖**后端**
 | IAM 部署角色 | `arcade-ftw-github-deploy` | ✅ 已建（CI 用）|
 | 日志组 | `/ecs/arcade-ftw-backend`（保留 30 天）| ✅ 已建 |
 | VPC / 子网 | 旧系统共用 `vpc-0dda76b286c45fc27`（**只引用**）| ✅ 未改动 |
-| RDS | 暂不建（下一步做，见下）| ⬜ 未定义 |
+| RDS | `arcade-ftw-db`（`db.t4g.micro` / PG 16.15 / 非公网 / 存储加密 / 删除保护）| ✅ 已建 |
+| RDS 安全组 | `arcade-ftw-rds-sg`（5432 仅来自 `arcade-ftw-ecs-sg`）| ✅ 已建 |
+| DB 子网组 | 复用现有 `default-vpc-0dda76b286c45fc27`（**未新建**）| ✅ 只引用 |
 | S3 + CloudFront | 属**前端 repo** 的范围 | ⬜ 未定义 |
 
 ### 首次上线必须先 bootstrap
@@ -61,6 +63,11 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 8. 基础镜像使用 `public.ecr.aws/docker/library/python:3.12-slim`，避开 Docker Hub 匿名拉取限流（否则 CI 会随机失败）。
 9. 本地校验工具：`actionlint`（workflow）+ `hadolint`（Dockerfile）+ `cfn-lint`（模板），见下节。
 10. **本机网络对部分域名是白名单制**（实测）：`registry-1.docker.io`、`github.com`、`mirror.gcr.io` **不通**；`public.ecr.aws`、`ghcr.io`、`api.github.com`、`pypi.org`、`registry.npmjs.org` **通**。这会决定你能否本地构建/下载工具——遇到超时先怀疑它，别改代码。
+11. **`EngineVersion` 必须给具体 PostgreSQL 小版本**（如 `16.15`）；只写 `16` 会被 RDS 拒绝。
+12. **`PreferredBackupWindow` 只接受 `hh24:mi-hh24:mi`**（不带星期）；星期前缀只对**维护窗口**有效。写错会导致建库失败。
+13. **加 RDS 时要分两阶段部署**：先只建库、**先不把 DB 变量接进任务定义**，确认托管密钥的 `password` 键可用后，再接任务定义。否则一旦任务起不来，栈回滚会**把刚建好的 RDS 一起删掉**。（更普通的说法：任何会让 ECS 服务无法稳定的改动，都会连累同一栈里的数据库。）
+14. **容器里要能拿到 `alembic.ini`**：Dockerfile 只 `COPY app ./app` 是不够的，迁移任务会立刻失败。已修。
+15. **`cloudformation deploy` 按栈里存的参数收敛**：若曾用 `DesiredCount=0` 建栈、之后手工把服务拉到 1，下一次 deploy 必须显式带 `DesiredCount=1`，否则会把服务打回 0。
 
 ## CI
 
@@ -161,8 +168,8 @@ aws cloudformation delete-stack --stack-name arcade-ftw --region ap-south-1
 - [x] 部署 `infra/cloudformation.yml` → 栈 `arcade-ftw`（含 OIDC provider + 部署角色）
 - [x] 推送首个镜像并把 `desiredCount` 提到 1 —— 服务已对外可用
 - [x] 接通 CI —— 改用 **GitHub OIDC**，无需任何 GitHub secret
-- [ ] 建 Secrets Manager，把 `API_KEY` 从明文 env 迁走
-- [ ] 建 RDS + 引入 Alembic（数据库改动目前**无处可部署**）—— 方案见 [architecture/rds-and-migrations.md](../architecture/rds-and-migrations.md)
+- [x] 建 RDS（`arcade-ftw-db`）+ Alembic 迁移链路 —— 数据库改动已可一键部署
+- [ ] 建 Secrets Manager 保存 `API_KEY`，把它从任务定义明文 env 迁走
 - [ ] 前端侧 CloudFront 分发（含 API 行为白名单 + 403/404 错误重写）
 - [ ] 考虑把 `arcade_ftw_be` 转为 private（目前 public）
 

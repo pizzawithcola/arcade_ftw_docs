@@ -60,9 +60,11 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [ ] `packages/shared`（机器可读的协议类型）尚未建；按旧手册 §11，起步用「TS 类型 + Pydantic 手写对应」，稳定后升级 JSON Schema
 - [x] 后端 IaC（CloudFormation）已部署：栈 `arcade-ftw`（`ap-south-1` / `866730904414`），含 OIDC provider + 部署角色
 - [x] 后端**已对外提供服务**：`http://arcade-ftw-alb-1071955694.ap-south-1.elb.amazonaws.com`，`/health` 200、`/ws` 通
-- [x] CI 已接通并实测成功（OIDC，零密钥，一次部署约 3.5 分钟）
-- [ ] AWS 剩余项（RDS / S3 / CloudFront / Secrets Manager）见 [aws/](./aws)
+- [x] CI 已接通并实测成功（OIDC，零密钥，一次部署约 4.5–5 分钟，含数据库迁移）
+- [x] 数据库链路已打通：RDS `arcade-ftw-db` + Alembic，迁移在 CI 里于滚动更新前执行
+- [ ] AWS 剩余项（S3 / CloudFront / Secrets Manager 存放 API_KEY）见 [aws/](./aws)
 - [ ] 前端侧 CloudFront（含 API 行为白名单 + 403/404 错误重写）尚未做
+- [ ] 数据库目前**只有 `players` / `scores` 两张表，且没有 API 使用**——只有链路，没有业务读写
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
 
 ---
