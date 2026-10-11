@@ -34,6 +34,8 @@ IaC 模板已写好（**尚未部署**）：`arcade_ftw_be/infra/cloudformation.
 5. **调 API 带尾斜杠**（否则裸路径落 S3）。
 6. 用 `curl -w '%{content_type}'` 区分 `application/json` vs `text/html` 来排查。
 7. 旧模板里 `!Ref` 传给 `TaskRoleArn` / `ExecutionRoleArn` 是**错的**（`Ref` 返回 role 名而非 ARN，需 `!GetAtt X.Arn`）；新模板已修正。
+8. 基础镜像使用 `public.ecr.aws/docker/library/python:3.12-slim`，避开 Docker Hub 匿名拉取限流（否则 CI 会随机失败）。
+9. 本地校验工具：`actionlint`（workflow）+ `hadolint`（Dockerfile），`brew install actionlint hadolint`。
 
 ## CI
 
