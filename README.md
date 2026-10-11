@@ -25,6 +25,7 @@ flowchart LR
 | 路径 | 内容 |
 |---|---|
 | [SYSTEM_HANDBOOK.md](./SYSTEM_HANDBOOK.md) | 跨 session 共享 memory（**开工前必读**）|
+| [.github/copilot-instructions.md](./.github/copilot-instructions.md) | **强制规则框架主来源**（三个 repo 的红线与行为约定）|
 | [architecture/](./architecture) | 状态机语义、架构决策记录（ADR）|
 | [protocol/](./protocol) | 前后端契约：WS 消息、题型定义 |
 | [aws/](./aws) | 资源清单、部署要点 |
