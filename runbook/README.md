@@ -2,10 +2,20 @@
 
 > ⬜ 待补充。活动前必须把下面的清单填满并演练一遍。
 
+## 公开访问点
+
+```
+https://d39s9y5ma27s5.cloudfront.net        # 站点
+https://d39s9y5ma27s5.cloudfront.net/api/*  # API（同源，无 CORS）
+https://d39s9y5ma27s5.cloudfront.net/health # 健康检查
+```
+
+> ⚠️ **ALB 已不再对外可达**（安全组只允许 CloudFront 的源站 IP）。所有验证、排查一律走上面这个域名，直连 ALB 会超时。
+
 ## 活动前
 
 - [ ] 后端部署到最新镜像，确认所有 task 健康
-- [ ] 确认 `curl <ALB>/health/db` 返回 200（**不能只看 `/health`**——它刻意不查库）
+- [ ] 确认 `curl https://<上面域名>/health/db` 返回 200（**不能只看 `/health`**——它刻意不查库）
 - [ ] 数据库快照已建
 - [ ] 前端产物已上线，`assets/index-*.js` 哈希确认更新
 - [ ] 大屏（kiosk）自愈与硬重载已开启
@@ -57,8 +67,8 @@ aws ecs describe-services --cluster arcade-ftw-cluster --services arcade-ftw-ser
 # 日志
 aws logs tail /ecs/arcade-ftw-backend --follow
 
-# 健康检查（大屏/API 域名）
-curl -s -w ' %{http_code} %{content_type}\n' http://arcade-ftw-alb-1071955694.ap-south-1.elb.amazonaws.com/health
+# 健康检查（一律走 CloudFront：ALB 已不对公网开放）
+curl -s -w ' %{http_code} %{content_type}\n' https://d39s9y5ma27s5.cloudfront.net/health
 ```
 
 > ⚠️ `cloudformation deploy` 会**按栈里存的参数值**收敛：如果曾用 `DesiredCount=0` 建栈、后来又手动把服务拉到 1，下一次 deploy **必须显式带 `DesiredCount=1`**，否则会把服务打回 0。

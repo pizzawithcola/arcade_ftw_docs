@@ -6,8 +6,14 @@
 
 ## 资源清单
 
-IaC 模板：`arcade_ftw_be/infra/cloudformation.yml` —— 只覆盖**后端**资源。
-**已部署**：CloudFormation 栈 **`arcade-ftw`**（`ap-south-1`，账号 `866730904414`，`UPDATE_COMPLETE`）。
+**两个栈**：
+
+| 栈 | 模板 | 覆盖 |
+|---|---|---|
+| `arcade-ftw`（后端）| `arcade_ftw_be/infra/cloudformation.yml` | ECR / ALB / ECS / RDS / IAM / 日志 / OIDC provider |
+| `arcade-ftw-frontend`（前端）| `arcade_ftw_fe/infra/cloudformation.yml` | S3 / CloudFront / SPA 回退函数 / 前端 OIDC 角色 |
+
+**已部署**：`ap-south-1`，账号 `866730904414`。
 
 | 资源 | 标识 | 状态 |
 |---|---|---|
@@ -26,7 +32,12 @@ IaC 模板：`arcade_ftw_be/infra/cloudformation.yml` —— 只覆盖**后端**
 | RDS | `arcade-ftw-db`（`db.t4g.micro` / PG 16.15 / 非公网 / 存储加密 / 删除保护）| ✅ 已建 |
 | RDS 安全组 | `arcade-ftw-rds-sg`（5432 仅来自 `arcade-ftw-ecs-sg`）| ✅ 已建 |
 | DB 子网组 | 复用现有 `default-vpc-0dda76b286c45fc27`（**未新建**）| ✅ 只引用 |
-| S3 + CloudFront | 属**前端 repo** 的范围 | ⬜ 未定义 |
+| S3 bucket | `arcade-ftw-frontend`（私有 + OAC）| ✅ 已建 |
+| CloudFront | `EJUERA5VLSVBB` → `d39s9y5ma27s5.cloudfront.net` | ✅ 已建 |
+| SPA 回退函数 | CloudFront Function `arcade-ftw-spa-fallback` | ✅ 已建 |
+| 前端 OIDC 角色 | `arcade-ftw-fe-github-deploy` | ✅ 已建 |
+
+**公开访问点**：`https://d39s9y5ma27s5.cloudfront.net`（站点 + API 同源）。**ALB 不再对外可达**。
 
 ### 首次上线必须先 bootstrap
 
@@ -68,6 +79,16 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 13. **加 RDS 时要分两阶段部署**：先只建库、**先不把 DB 变量接进任务定义**，确认托管密钥的 `password` 键可用后，再接任务定义。否则一旦任务起不来，栈回滚会**把刚建好的 RDS 一起删掉**。（更普通的说法：任何会让 ECS 服务无法稳定的改动，都会连累同一栈里的数据库。）
 14. **容器里要能拿到 `alembic.ini`**：Dockerfile 只 `COPY app ./app` 是不够的，迁移任务会立刻失败。已修。
 15. **`cloudformation deploy` 按栈里存的参数收敛**：若曾用 `DesiredCount=0` 建栈、之后手工把服务拉到 1，下一次 deploy 必须显式带 `DesiredCount=1`，否则会把服务打回 0。
+16. **不要改已命名安全组的 `GroupDescription`**：AWS 拒绝更新描述并触发**强制替换**，而替换要用同名 `GroupName` → 报 `Security Group ... already exists` 并失败。描述一旦写错就改名或放弃修正（本项目的 `arcade-ftw-alb-sg` 描述至今仍写着 "from the internet"）。
+17. **CloudFront 源站前缀列表 `pl-9aa247f3` 有 46 条**，而安全组上限 60 条规则（按条目计）。所以**一个安全组只能引用它一次**——80 与 443 各引一次会报 `maximum number of rules per security group has been reached`。
+18. **收紧 ALB 安全组会让 CI 的直连 curl 验证失效**。凡是要验证健康检查的地方（CI、人工排查）一律改走 CloudFront 域名。
+19. **WebSocket 经 CloudFront 是「零配置」可用的**（已实测 `wss://<cf>/api/ws` 握手 101 并收到消息）。曾一度误判为 CloudFront 故障，实际是**新代码还没部署**——源站日志里那行 `"WebSocket /api/ws" 403` 是「没有匹配到路由」，不是网络问题。**排查顺序：先看源站日志，再怀疑 CDN。**
+20. **CloudFront 分发创建很慢**（约 10–20 分钟），`cloudformation deploy` 要有耐心，别误判为卡死。
+21. **两个栈通过 export/import 耦合**：前端栈 `Fn::ImportValue` 后端栈的 `arcade-ftw-AlbDns`，所以**前端栈存在期间后端栈无法单独删除**。
+
+### 刻意**不**做的事
+
+- **不配置分发表级的 `403/404 → 200 /index.html`**（旧系统的做法）。那会让所有后端错误伪装成 `200 text/html`。这里用只在 S3 行为上生效的 CloudFront Function 做 SPA 回退，实测：`/api/nope` → **真实 404 JSON**，`/missing.js` → **真实 403**。
 
 ## CI
 
@@ -169,7 +190,8 @@ aws cloudformation delete-stack --stack-name arcade-ftw --region ap-south-1
 - [x] 推送首个镜像并把 `desiredCount` 提到 1 —— 服务已对外可用
 - [x] 接通 CI —— 改用 **GitHub OIDC**，无需任何 GitHub secret
 - [x] 建 RDS（`arcade-ftw-db`）+ Alembic 迁移链路 —— 数据库改动已可一键部署
+- [x] 前端部署：S3 + CloudFront（站点与 API **同源**），前端 CI 走 OIDC
 - [ ] 建 Secrets Manager 保存 `API_KEY`，把它从任务定义明文 env 迁走
-- [ ] 前端侧 CloudFront 分发（含 API 行为白名单 + 403/404 错误重写）
-- [ ] 考虑把 `arcade_ftw_be` 转为 private（目前 public）
+- [ ] 考虑把 `arcade_ftw_be` / `arcade_ftw_fe` 转为 private（目前都是 public）
+- [ ] 考虑给 CloudFront 配自定义域名 + ACM 证书（目前用 `*.cloudfront.net`）
 

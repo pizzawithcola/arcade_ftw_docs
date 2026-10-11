@@ -2,6 +2,16 @@
 
 前后端唯一契约。**改这里必须同时改 `arcade_ftw_be/app/ws.py` 与 `arcade_ftw_fe/src/store/gameStore.ts`。**
 
+## 端点
+
+```
+ws(s)://<host>/api/ws
+```
+
+路径带 `/api` 前缀：CloudFront 只用**一条 `/api/*` 行为**把游戏相关流量反代到后端 ALB，所以新增接口永远不需要改基础设施。`/health`、`/health/db` 是唯一留在根路径的例外（ALB 直连探活）。
+
+前端用相对地址推导（生产 `wss://<cloudfront 域名>/api/ws`，本地开发由 Vite proxy 转发到 `localhost:5071`），因此**同一份代码在本地与线上都能跑**。
+
 ## 信封
 
 所有消息统一为：
