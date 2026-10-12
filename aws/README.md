@@ -85,6 +85,10 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 19. **WebSocket 经 CloudFront 是「零配置」可用的**（已实测 `wss://<cf>/api/ws` 握手 101 并收到消息）。曾一度误判为 CloudFront 故障，实际是**新代码还没部署**——源站日志里那行 `"WebSocket /api/ws" 403` 是「没有匹配到路由」，不是网络问题。**排查顺序：先看源站日志，再怀疑 CDN。**
 20. **CloudFront 分发创建很慢**（约 10–20 分钟），`cloudformation deploy` 要有耐心，别误判为卡死。
 21. **两个栈通过 export/import 耦合**：前端栈 `Fn::ImportValue` 后端栈的 `arcade-ftw-AlbDns`，所以**前端栈存在期间后端栈无法单独删除**。
+22. **CI 与栈更新是两个互不知道的写者，方向不对称，要分清**：
+    - **CI 读线上的 task definition**，只替换镜像 tag → 所以**代码推送不会把改过的环境变量（如管理员密码）打回模板默认值**。
+    - **反过来栈更新会赢**：`AWS::ECS::TaskDefinition` 是按模板重新生成一个 revision 并让服务指向它，于是服务从 CI 上次固定的 `<sha>` 回到模板里的 `:latest`。内容其实相同（CI 两个 tag 同推、digest 一致，已实测），但**不再是精确版本**——想要可追溯的版本号，栈更新后跑一次 CI（或直接 `update-service` 指回该 SHA 的 revision）。
+23. **改单个参数别重发全部参数**：`update-stack --use-previous-template` + 逐个 `UsePreviousValue: true`，可以让 `SecretKey` 这类值**完全不经过命令行与 shell 历史**。注意 `update-stack` **必须显式带 `--capabilities CAPABILITY_NAMED_IAM`**，即使这次改动本身不碰 IAM。
 
 ### 刻意**不**做的事
 

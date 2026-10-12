@@ -48,18 +48,67 @@ git push          # CI 会先跑迁移，成功后才滚动更新
 > ⚠️ **迁移失败会阻断部署**（这是刻意的）：旧 revision 继续服务，不会出现「代码已上新、schema 未生效」。
 > ⚠️ **迁移不可自动回滚**：代码可以回滚，schema 不能。回滚需人工执行 `alembic downgrade`，且要先确认数据兼容。
 
+## 凭据轮换（管理员密码 / SecretKey）
+
+两者都活在**任务定义的环境变量**里，所以「改密码」= 改栈参数 → 新 task definition revision → ECS 滚动更新。没有 Secrets Manager，所以**每一次轮换都是一次部署**。
+
+```bash
+# 只改 AdminPassword，其余参数一律沿用栈里现存的值。
+# 这样 SecretKey 完全不经过命令行与 shell 历史。
+python3 - <<'PY'
+import json
+keep = ["NamePrefix","DesiredCount","CloudFrontPrefixListId","TaskSubnet2","GitHubRepoIds",
+        "DbSubnetGroupName","TaskSubnet1","AdminUsername","SecretKey","VpcId","PublicSubnet2",
+        "DbName","DbInstanceClass","DbEngineVersion","GitHubBranch","PublicSubnet1",
+        "GitHubRepo","CertificateArn"]
+params = [{"ParameterKey": k, "UsePreviousValue": True} for k in keep]
+params.append({"ParameterKey": "AdminPassword", "ParameterValue": "新密码"})
+json.dump(params, open("/tmp/pw.json", "w"), indent=1)
+PY
+
+aws cloudformation update-stack --stack-name arcade-ftw --region ap-south-1 \
+  --use-previous-template --capabilities CAPABILITY_NAMED_IAM \
+  --parameters file:///tmp/pw.json
+rm -f /tmp/pw.json
+
+aws cloudformation wait stack-update-complete --stack-name arcade-ftw --region ap-south-1
+aws ecs wait services-stable --cluster arcade-ftw-cluster --services arcade-ftw-service --region ap-south-1
+
+# 验证：旧密码 401 / 新密码 200
+D=https://d39s9y5ma27s5.cloudfront.net
+curl -s -o /dev/null -w '旧密码 %{http_code}\n' -X POST "$D/api/auth/admin" \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"旧密码"}'
+curl -s -o /dev/null -w '新密码 %{http_code}\n' -X POST "$D/api/auth/admin" \
+  -H 'Content-Type: application/json' -d '{"username":"admin","password":"新密码"}'
+```
+
+> ⚠️ **轮换会替换容器**，内存里的引擎状态归零（回 `idle`，进度全丢）。**活动进行中绝对不要轮换。**
+> ⚠️ 轮换 `SecretKey` 会让**所有已签发的令牌立即失效**（在场玩家需重新登录，管理员需重新登录）。
+> ⚠️ 栈更新会把服务指回模板里的 `:latest`（见 [../aws/README.md](../aws/README.md) 第 22 条）：内容相同，但不再是 CI 固定的版本号。想恢复精确版本，轮换后再跑一次 CI。
+> ⚠️ `update-stack` **必须带 `--capabilities CAPABILITY_NAMED_IAM`**，否则报 `InsufficientCapabilitiesException`。
+
 ## 已知的部署操作
 
 ```bash
 # 常规部署：走 CI（push main 即可），约 3.5 分钟。下面是排障/首次建栈用的。
 
 # 基础设施（幂等；参数取值见 ../aws/README.md）
+# 现存的完整参数集可以直接读出来，避免手抄漏项：
+aws cloudformation describe-stacks --stack-name arcade-ftw --region ap-south-1 \
+  --query 'Stacks[0].Parameters'
 aws cloudformation deploy --region ap-south-1 \
   --template-file infra/cloudformation.yml \
   --stack-name arcade-ftw \
   --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides VpcId=vpc-... PublicSubnet1=subnet-... PublicSubnet2=subnet-... \
-                         TaskSubnet1=subnet-... TaskSubnet2=subnet-... ApiKey=... DesiredCount=1
+  --parameter-overrides NamePrefix=arcade-ftw VpcId=vpc-... \
+                         PublicSubnet1=subnet-... PublicSubnet2=subnet-... \
+                         TaskSubnet1=subnet-... TaskSubnet2=subnet-... \
+                         DbSubnetGroupName=... DbName=arcade_ftw DbEngineVersion=16.15 \
+                         DbInstanceClass=db.t4g.micro CloudFrontPrefixListId=pl-9aa247f3 \
+                         GitHubRepo=pizzawithcola/arcade_ftw_be GitHubBranch=main \
+                         GitHubRepoIds=pizzawithcola@68038650/arcade_ftw_be@1414195943 \
+                         AdminUsername=admin AdminPassword=... SecretKey=... \
+                         CertificateArn= DesiredCount=1
 
 # 服务与滚动状态
 aws ecs describe-services --cluster arcade-ftw-cluster --services arcade-ftw-service --region ap-south-1
