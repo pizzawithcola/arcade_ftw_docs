@@ -54,7 +54,7 @@
 暂停中跳到第 4 节点 → 按 resume → 正确播放第 4 节点 ✅
 ```
 
-前端据此刻意把 `start` **只在 `idle` / `finished` 时可点**（`playing` 期间 `start` 本来就是纯无操作），让这个陷阱无法从界面上触发。但从 `/docs` 或 curl 直接打 API 仍会命中，**用 API 操作时请自己注意**。
+前端据此刻意把 `start` **只在 `idle` / `finished` 时可点**（`playing` 期间 `start` 本来就是纯无操作），让这个陷阱无法从界面上触发。但从 `/api/docs` 或 curl 直接打 API 仍会命中，**用 API 操作时请自己注意**。
 
 ### `reset` 用在哪
 

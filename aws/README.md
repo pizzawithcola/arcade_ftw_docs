@@ -89,6 +89,8 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
     - **CI 读线上的 task definition**，只替换镜像 tag → 所以**代码推送不会把改过的环境变量（如管理员密码）打回模板默认值**。
     - **反过来栈更新会赢**：`AWS::ECS::TaskDefinition` 是按模板重新生成一个 revision 并让服务指向它，于是服务从 CI 上次固定的 `<sha>` 回到模板里的 `:latest`。内容其实相同（CI 两个 tag 同推、digest 一致，已实测），但**不再是精确版本**——想要可追溯的版本号，栈更新后跑一次 CI（或直接 `update-service` 指回该 SHA 的 revision）。
 23. **改单个参数别重发全部参数**：`update-stack --use-previous-template` + 逐个 `UsePreviousValue: true`，可以让 `SecretKey` 这类值**完全不经过命令行与 shell 历史**。注意 `update-stack` **必须显式带 `--capabilities CAPABILITY_NAMED_IAM`**，即使这次改动本身不碰 IAM。
+24. **SPA 回退会让「不存在的路径」返回 200，从而骗过任何只看状态码的检查。** `/docs` 曾经「测试通过」——实际返回的是 `text/html` 的 React 页面，因为后端只服务 `/api/*`，根路径落到了 S3 源站，而 SPA 函数把「对象不存在」改写成了 `index.html`。**失败特征**：无扩展名的路径（`/docs`）被改写成 `index.html` 返回 `200`；带扩展名的路径（`/openapi.json`）不被改写，返回真实 `403 AccessDenied`。**教训**：验证 CDN 后的端点时必须断言 `content-type` 和响应体内容，不能只看状态码。CI 已按此加了 `/api/openapi.json` 检查。
+25. **后端所有路由都挂在 `/api` 下**，因为 CloudFront 只有一条 `/api/*` 行为指向后端（外加 `/health*` 供 ALB 探活）。**新增端点不需要动 IaC**——但如果把端点挂在根路径，它就会静默地落到 S3 上。（FastAPI 的 `docs_url` / `openapi_url` 因此也是 `/api/docs` / `/api/openapi.json`。）
 
 ### 刻意**不**做的事
 
