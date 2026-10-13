@@ -36,7 +36,7 @@ ws(s)://<host>/api/ws
 {
   "phase": "idle | playing | paused | finished",
   "index": 2,
-  "node_count": 6,
+  "node_count": 8,
   "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 20 },
   "remaining_ms": 16780,
   "server_time_ms": 1791733393351
@@ -54,13 +54,26 @@ ws(s)://<host>/api/ws
 
 ## 流程节点
 
+当前主线（8 个节点）：
+
 ```json
-{ "type": "intro", "title": "Welcome", "duration_sec": 10 }
-{ "type": "game", "game": "hallucinate", "title": "Hallucinate", "duration_sec": 30 }
-{ "type": "quiz", "title": "Quiz round 1", "duration_sec": 20 }
-{ "type": "outro", "title": "That's all", "duration_sec": 10 }
+{ "type": "intro", "title": "Welcome",        "duration_sec": 10 }
+{ "type": "game",  "game": "hallucination", "title": "Hallucination", "duration_sec": 30 }
+{ "type": "quiz",  "title": "Quiz round 1",   "duration_sec": 20 }
+{ "type": "game",  "game": "data_shadow",   "title": "Data Shadow",   "duration_sec": 30 }
+{ "type": "quiz",  "title": "Quiz round 2",   "duration_sec": 20 }
+{ "type": "game",  "game": "sabotage",      "title": "Sabotage",      "duration_sec": 30 }
+{ "type": "quiz",  "title": "Ultimate Quiz",  "duration_sec": 30 }
+{ "type": "outro", "title": "Wrap up",        "duration_sec": 10 }
 ```
 
 配置源：`arcade_ftw_be/app/flow.py` 的 `ROUND_FLOW`。**改流程只改配置，不改引擎。**
 
-每个节点都带 `title`，前端**不依赖节点类型**也能渲染出一个像样的占位屏；`type` 决定前端用哪种界面。
+### 节点的两个身份字段
+
+- **`type` = 类别**（`intro` / `game` / `quiz` / `outro`），是引擎唯一关心的字段。
+- **`game` = 具体游戏**，只出现在 `game` 节点上。三个游戏外观完全不同，但共用一个类别——所以**前端在自己那一层按 `game` 分派界面**，`type` 保持宽泛。
+
+前端用两个 class 落地这件事：`stage--game`（共用的游戏版式）**加** `stage--hallucination`（该游戏专属的钩子）。只给类别 class 的话，三个游戏会共用一个不可区分的钩子。
+
+**`title` 纯展示**：观众看它，代码永远不拿它做分支。正因如此，两轮普通 quiz 和最后的 Ultimate Quiz 可以都是 `type: "quiz"`，而代码不需要区分它们。
