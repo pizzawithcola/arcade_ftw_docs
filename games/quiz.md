@@ -23,9 +23,10 @@
 
 ## 每道题一个倒计时
 
-三道题就是三个独立的 20 秒，不是「整个节点一个总倒计时」。
+两道题就是两个独立的 20 秒，不是「整个节点一个总倒计时」。
 
-- 计时锚定在 `questionStart`（挂载/切题的**时间戳**），由 `useTicker` 每 250ms 触发重渲染。
+- **倒计时跟随引擎暂停**（这是实测抓到的 bug）。裸 `Date.now()` 会让游戏内的倒计时在暂停期间继续走，题被烧掉。现在从引擎状态推导（`useNodeElapsed`）：`remainingMs = endsAt ?? heldMs` 相减得到已用时间——`endsAt` 与 `heldMs` 本来就是暂停感知的，所以不需要第二个时钟。
+- 计时锚定在 `questionStart`（切题时的**已用时间快照**），由 `useTicker` 每 250ms 触发重渲染。
 - **超时用派生值，不用 state**：`expired = picked === undefined && timeLeftMs === 0`。曾经用 `useEffect` + `setState` 实现，被 oxlint 的 `react(set-state-in-effect)` 抓出来——那是多余的额外渲染，且状态可以推导就不该存储。
 - 超时**不会卡住节目**：直接进入揭晓并显示 `Time's up`，避免一块没人操作的屏幕让整场演出停摆。
 
@@ -37,7 +38,7 @@
 
 | 游戏 | 题目数 × 每题 | 节点时长 | 余量 |
 |---|---|---|---|
-| Hallucination | 3 × 20s = 60s | **66s** | 6s |
+| Hallucination | 2 × 30s = 60s | **66s** | 6s |
 | 每个 quiz | 2 × 20s = 40s | **46s** | 6s |
 
 > ⚠️ **改题目数量或 `time_limit` 时，必须同步改 `flow.py` 的 `duration_sec`。** 目前这两处是**手工保持一致的**，没有代码校验。题库搬到后端后，应该让后端从题目数据算出节点时长，而不是继续手写。
