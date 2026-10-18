@@ -54,12 +54,27 @@
 
 - **SQLAlchemy 2 async + asyncpg**（旧手册 §13.5 的建议，避免同步调用阻塞事件循环）
 - **Alembic** 管理 schema：`alembic.ini` + `app/migrations/`
-- 计分表按既有决策用**长表**，不硬编码 `game1~5_score`：
+
+当前 schema（迁移 `c4f1a9b7e2d5` 之后）：
 
 ```sql
-players(id, nickname, country, created_at)
-scores(player_id, stage_key, score, updated_at)   -- 主键 (player_id, stage_key)
+players(id, nickname, event, created_at)
+        -- UNIQUE (event, nickname)
+
+scores(player_id, hallucination_score, data_score, sabotage_score, ultimate_score,
+       total_score, updated_at)
+        -- 主键 (player_id)，FK → players(id) ON DELETE CASCADE
+        -- total_score 是数据库生成列 = 四个分数之和
 ```
+
+> ⚠️ **这里与既有决策相反，是有意的改动。** 早期规则是「计分用长表 / JSONB，不硬编码
+> `game1~5_score`」，理由是加新环节不必改表。现在**明确改成宽表**：演出固定四场游戏，
+> 被问的查询是「按 total 排名的排行榜」，宽表让这类查询不必 GROUP BY。
+> **代价：加第五个游戏需要一次迁移。**
+>
+> `total_score` 用 `GENERATED ALWAYS AS (...) STORED` 而不是应用层求和——这样
+> **total 永远不可能和四个分项不一致**，无论哪条代码路径写入。
+> 直接 `UPDATE total_score` 会被数据库拒绝（实测）。
 
 ### 3.4 迁移的执行方式（推荐：CI 里跑一次性 ECS 任务）
 
