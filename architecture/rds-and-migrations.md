@@ -149,5 +149,5 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 
 - **迁移不可自动回滚**：代码能回滚，schema 不能。迁移脚本必须自带可用的 `downgrade()`，回滚靠人工决定。
 - 部署时间从 3.5 分钟增加到 **约 4.5–5 分钟**（多一次迁移任务）。
-- `rooms` / `players.room_code` 已有 API 使用（`join` / 名单）；`scores` 仍**没有代码写入**——答案上报链路未做，所以名单里的总分此刻恒为 0。
+- `rooms` / `players.room_code` 已有 API 使用（建房间 / join / 名单）；`scores` **只有管理员改分接口**（`PUT` 设值、`adjust` 增量），游戏答案上报链路未做，所以名单里的总分默认仍是 0。
 - 应用启动**不建表**，schema 只由迁移创建。

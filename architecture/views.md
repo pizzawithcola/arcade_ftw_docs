@@ -25,7 +25,9 @@
 /api/rooms/{code}/state
 /api/rooms/{code}/start | pause | resume | finish | reset | go/{index}
 /api/rooms/{code}/join            # 玩家把自己记进该房间
-/api/rooms/{code}/players         # 房间名单 + 每人 total_score
+/api/rooms/{code}/players         # 房间名单（玩家只见昵称，admin/display 见总分）
+/api/players/{id}/score           # 分数读写（管理员）
+/api/rooms                        # 房间 CRUD（POST 建、PATCH 改、DELETE 删）
 /api/ws?room={code}
 ```
 
@@ -45,10 +47,40 @@
 
 ### 房间名单（阶段 1.5）
 
-`GET /api/rooms/{code}/players` 只给 **admin / display**（`require_display`）：名单里有每个人的昵称和总分，不适合公开。
+`GET /api/rooms/{code}/players` 给**任何已登录身份**（`require_signed_in`），但**按身份裁剪内容**：
+
+| 身份 | 拿到什么 |
+|---|---|
+| admin / display | `player_id`、`nickname`、`event`、`total_score` |
+| 玩家 | **只有 `nickname`** |
+
+玩家等待室要显示「房间里有谁」，所以这条必须对玩家开放；但分数和活动是给操作员和大屏的，
+否则每台 iPad 都在轮询一张排行榜。裁剪在同一个接口里做，前端不需要第二个端点。
 
 - 读法是 `players LEFT JOIN scores`，按 `total_score` 倒序；**没有分数行的人也在名单上，读作 0**——人从进房间那一刻就该看得见，而不是等打完第一局。
-- 玩家等待室**暂时不显示名单**（用户明确说「晚点说」）；接口本身已就绪。
+- 等待室每 **3 秒** 轮询一次（名单不走 WS：socket 传的是节目，不是宾客名单），自己的名字高亮。
+- 昵称在房间内唯一（重名自动编号），所以可以作为列表的 key。
+
+### 管理接口（阶段 2 的第一块）
+
+房间、玩家、分数都能增删改查。全部走 HTTP + `require_admin` / `require_display`，在 `/api/docs` 里可以直接点。
+
+| 操作 | 接口 | 关键约束 |
+|---|---|---|
+| 房间 增 | `POST /api/rooms` | code 必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
+| 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（库里人数）与 `clients`（活的连接） |
+| 房间 改 | `PATCH /api/rooms/{code}` | 只能改 `event` / `label`；**code 不可改**（已在 URL、已印的二维码、玩家归属里） |
+| 房间 删 | `DELETE /api/rooms/{code}` | **playing / paused 时拒绝（409）**——删引擎会把房间里每台 iPad 晾在半局 |
+| 玩家 增 | `POST /api/rooms/{code}/players` | 操作员替玩家建成员（设备掉了人还在名单上），重名照常编号 |
+| 玩家 查 | `GET /api/players`、`GET /api/players/{id}` | 支持 `?room=` / `?event=` 过滤，带 `total_score` |
+| 玩家 改 | `PATCH /api/players/{id}` | 改昵称 / 活动 / 房间；`room_code: null` = 移出房间，**省略该字段 = 不动** |
+| 玩家 删 | `DELETE /api/players/{id}` | 分数随外键**级联删除** |
+| 分数 改 | `PUT /api/players/{id}/score`、`POST /api/players/{id}/score/adjust` | 前者**设置**分项（未给的保持不变，首次写入建行），后者按**增量**加减；`total_score` 是生成列，不接受写入 |
+
+分数为什么要两个接口：游戏上报的是「你得到 +20」，而运营手动纠错时想的是「他应该是 30」。
+同一条路径上放 `delta` 字段会让「要设成 0」和「减 0」长得一样，所以拆成两个语义明确的动作。
+
+> ⚠️ 这些接口目前**没有 Admin 面板 UI**，只有 Swagger（`/api/docs`）和 HTTP。UI 留给下一步。
 
 ## 令牌与角色
 
@@ -85,5 +117,5 @@
 ## 已知限制（阶段 1）
 
 - **还没有答案上报**，所以大屏没有聚合数据；名单里的总分此刻恒为 0（`scores` 没有写入方）。
-- **只有一个房间**：`/api/rooms` 列出的是 `rooms` 表的内容，目前只有 seed 出来的 `main`；建房间接口留给阶段 2。
+- **只有 `main` 一个房间**：建房间的接口已经可用，但没有 Admin 面板 UI，也没有「一屏看多个房间」之外的房间管理界面。
 - 玩家分数仍只存在于页面内存，刷新即清零。
