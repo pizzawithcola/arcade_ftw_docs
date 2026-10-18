@@ -72,6 +72,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **room = 一轮游戏**：admin 新建 `round-N`，大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**
 - [x] 玩家不扫码：登录后在 `/play` 跟随当前轮；本轮 `finished` → 收尾屏 8 秒后回登录页
 - [x] 大屏展示题目（索引由引擎按 `questions`/`seconds_each` 算出），选项只在玩家屏
+- [x] 大屏空闲态 = **等待室**：Waiting Room + 已加入玩家名墙 + 人数（无二维码/网址/房间号，`qrcode.react` 已移除）
 - [x] Admin Data 分区可对房间/玩家**新增、编辑、删除**（分数仍走接口）
 - [ ] `scores` 仍**没有游戏写入**——只有管理员改分接口，答案上报链路未做，所以名单总分默认 0
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
