@@ -97,6 +97,8 @@ Arcade Data 的两张表：
 | Rooms | Room、Label、Event、Phase、Node、Joined、Online、`view`（选中该房间并跳到 Players） |
 | Players | Player、Event、Hallu、Data、Sabotage、Ultimate、Total（按 Total 倒序，无分数行读作 0） |
 
+两张表**共用同一套表头、说明行和数字对齐**，切换时只有数据在变，视觉不跳。Rooms 表最后一列是动作列（表头留空只是 `aria-label`），不是数据列。
+
 几个刻意的取舍：
 
 - **没有独立的「房间列表」窗口**。以前左栏那排房间卡片占掉了半屏，而实际只有 `main` 一个房间。房间现在是 **Data 里的一张表**，需要选房间时用 Console 的下拉或表里的 `view`。
