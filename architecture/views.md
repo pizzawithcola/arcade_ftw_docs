@@ -86,15 +86,24 @@
 
 | 分区 | 内容 | 数据来源 |
 |---|---|---|
-| **Arcade Console** | 现在这套：房间列表 + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
-| **Arcade Data** | 选中房间的状态概要（phase / node / joined / online）+ 玩家表（昵称、活动、四个分项、total，按 total 倒序） | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
+| **Arcade Console** | 单个控制面板：房间下拉 + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
+| **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格（见下） | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
 | **Game Setting** | 占位，留给房间默认值 / 节点时长 | — |
+
+Arcade Data 的两张表：
+
+| 表 | 列 |
+|---|---|
+| Rooms | Room、Label、Event、Phase、Node、Joined、Online、`view`（选中该房间并跳到 Players） |
+| Players | Player、Event、Hallu、Data、Sabotage、Ultimate、Total（按 Total 倒序，无分数行读作 0） |
 
 几个刻意的取舍：
 
+- **没有独立的「房间列表」窗口**。以前左栏那排房间卡片占掉了半屏，而实际只有 `main` 一个房间。房间现在是 **Data 里的一张表**，需要选房间时用 Console 的下拉或表里的 `view`。
+- **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Joined / Online / 四个分项。
 - **只读**。UI 目前只展示数据，增删改仍然走接口（`/api/docs`）。把「删玩家」「改分」做成按钮之前，需要先想清楚误触保护。
-- **玩家表放在 Data 分区、按需轮询**：名单没人看的时候不该每秒查一次库。
-- **窄屏（< 52rem）时侧边栏变成一行 tab**，内容改为单列；宽屏是 12rem 侧栏 + 内容区。
+- **玩家表按分区打开才轮询**：名单没人看的时候不该每秒查一次库。
+- **窄屏（< 52rem）时侧边栏变成一行 tab**，宽屏是 12rem 侧栏 + 内容区；表格在窄屏内横向滚动，不撑破页面。
 - 分区状态**不持久化**，刷新回到 Console——操作员最常用的还是控制台。
 
 ## 令牌与角色
