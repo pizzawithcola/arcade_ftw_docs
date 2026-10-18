@@ -55,17 +55,26 @@
 - **SQLAlchemy 2 async + asyncpg**（旧手册 §13.5 的建议，避免同步调用阻塞事件循环）
 - **Alembic** 管理 schema：`alembic.ini` + `app/migrations/`
 
-当前 schema（迁移 `c4f1a9b7e2d5` 之后）：
+当前 schema（迁移 `e8b3d5c1a712` 之后）：
 
 ```sql
-players(id, nickname, event, created_at)
+rooms(code, event, label, created_at)
+        -- 主键 (code)；迁移 seed 了 'main'
+        -- 房间的真相来源：启动时 Registry 读这张表建引擎
+
+players(id, nickname, event, room_code, created_at)
         -- UNIQUE (event, nickname)
+        -- room_code 可空，FK → rooms(code) ON DELETE SET NULL，已建索引
 
 scores(player_id, hallucination_score, data_score, sabotage_score, ultimate_score,
        total_score, updated_at)
         -- 主键 (player_id)，FK → players(id) ON DELETE CASCADE
         -- total_score 是数据库生成列 = 四个分数之和
 ```
+
+**房间从「内存里的默认值」变成数据**：`RoomRegistry` 启动时读 `rooms` 建每个房间的引擎，
+`main` 由迁移 seed；`players.room_code` 记录成员归属，玩家登录就建行、进房间才写归属。
+删房间把成员置空（`ON DELETE SET NULL`）而不是删人——人是先于房间存在的。
 
 > ⚠️ **这里与既有决策相反，是有意的改动。** 早期规则是「计分用长表 / JSONB，不硬编码
 > `game1~5_score`」，理由是加新环节不必改表。现在**明确改成宽表**：演出固定四场游戏，
@@ -140,5 +149,5 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 
 - **迁移不可自动回滚**：代码能回滚，schema 不能。迁移脚本必须自带可用的 `downgrade()`，回滚靠人工决定。
 - 部署时间从 3.5 分钟增加到 **约 4.5–5 分钟**（多一次迁移任务）。
-- `players` / `scores` 目前**没有任何 API 使用**——本次只打通链路，业务读写留给后续。
+- `rooms` / `players.room_code` 已有 API 使用（`join` / 名单）；`scores` 仍**没有代码写入**——答案上报链路未做，所以名单里的总分此刻恒为 0。
 - 应用启动**不建表**，schema 只由迁移创建。

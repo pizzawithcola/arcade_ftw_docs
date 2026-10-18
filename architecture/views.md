@@ -24,6 +24,8 @@
 ```
 /api/rooms/{code}/state
 /api/rooms/{code}/start | pause | resume | finish | reset | go/{index}
+/api/rooms/{code}/join            # 玩家把自己记进该房间
+/api/rooms/{code}/players         # 房间名单 + 每人 total_score
 /api/ws?room={code}
 ```
 
@@ -31,7 +33,22 @@
 
 引擎按房间隔离（`app/rooms.py` 的 `RoomRegistry`），每个房间有自己的时钟、进度和广播目标。**未知房间返回 404**（不会静默新建，避免打错 URL 就出现一场空节目）。
 
+### 房间是数据
+
+房间现在有行：`rooms(code PK, event, label, created_at)`，`main` 由迁移 seed。启动时 `RoomRegistry.load()` 读这张表建引擎；**读库失败只记警告并退回默认房间**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉。
+
+成员归属记在 `players.room_code`（可空，`ON DELETE SET NULL`）。登录就建 `players` 行，**进房间才写 `room_code`**：`POST /api/rooms/{code}/join`，玩家端每次进页面都调，所以刷新 / 换 Wi-Fi 后仍然在原房间。删房间只是把成员置空，不会删人。
+
+> `GET /api/rooms` 的两个数字不要混：`players` 是**库里加入该房间的人数**，`clients` 是**当前 WS 连接数**。iPad 熄屏、切后台都会让 `clients` 掉下去，而 `players` 不变。
+
 > ⚠️ 引擎仍是**进程内内存态**。两个房间在一个进程里可以并行，但**一次部署会把所有房间清零**。
+
+### 房间名单（阶段 1.5）
+
+`GET /api/rooms/{code}/players` 只给 **admin / display**（`require_display`）：名单里有每个人的昵称和总分，不适合公开。
+
+- 读法是 `players LEFT JOIN scores`，按 `total_score` 倒序；**没有分数行的人也在名单上，读作 0**——人从进房间那一刻就该看得见，而不是等打完第一局。
+- 玩家等待室**暂时不显示名单**（用户明确说「晚点说」）；接口本身已就绪。
 
 ## 令牌与角色
 
@@ -67,6 +84,6 @@
 
 ## 已知限制（阶段 1）
 
-- **还没有答案上报**，所以大屏没有聚合数据。
-- **只有一个房间**，`/api/rooms` 目前只列出 `main`；建房间接口留给阶段 2。
+- **还没有答案上报**，所以大屏没有聚合数据；名单里的总分此刻恒为 0（`scores` 没有写入方）。
+- **只有一个房间**：`/api/rooms` 列出的是 `rooms` 表的内容，目前只有 seed 出来的 `main`；建房间接口留给阶段 2。
 - 玩家分数仍只存在于页面内存，刷新即清零。
