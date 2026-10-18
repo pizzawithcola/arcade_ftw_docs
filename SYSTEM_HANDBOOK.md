@@ -68,7 +68,8 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [ ] 前端仍是**占位屏**：没有真实游戏界面、没有题型渲染器
 - [ ] 题型注册表仍只有 `choice` 一个示例；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` 三张表，房间是数据（`main` 由迁移 seed），成员记在 `players.room_code`
-- [x] 房间 / 玩家 / 分数的增删改查接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`），无 UI，只有 Swagger
+- [x] 房间 / 玩家 / 分数的增删改查接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
+- [x] **room = 一轮游戏**：admin 在 Console 点 `new room` 生成 `round-N`，大屏 `/display` 自动跟随最新房间，玩家扫码绑定到那一轮
 - [ ] `scores` 仍**没有游戏写入**——只有管理员改分接口，答案上报链路未做，所以名单总分默认 0
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
 

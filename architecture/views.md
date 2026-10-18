@@ -37,7 +37,9 @@
 
 ### 房间是数据
 
-房间现在有行：`rooms(code PK, event, label, created_at)`，`main` 由迁移 seed。启动时 `RoomRegistry.load()` 读这张表建引擎；**读库失败只记警告并退回默认房间**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉。
+**room = 一轮游戏**。每轮由 admin 新建一个房间（`round-1`、`round-2`…，也可以自己给 code），玩家扫码加入后**绑定到那一轮**。所以房间列表是**历史**，最新创建的那个是「当前轮」。
+
+房间有行：`rooms(code PK, event, label, created_at)`，`main` 由迁移 seed（第一轮之前的占位）。启动时 `RoomRegistry.load()` 读这张表建引擎；**读库失败只记警告并退回默认房间**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉。
 
 成员归属记在 `players.room_code`（可空，`ON DELETE SET NULL`）。登录就建 `players` 行，**进房间才写 `room_code`**：`POST /api/rooms/{code}/join`，玩家端每次进页面都调，所以刷新 / 换 Wi-Fi 后仍然在原房间。删房间只是把成员置空，不会删人。
 
@@ -67,7 +69,7 @@
 
 | 操作 | 接口 | 关键约束 |
 |---|---|---|
-| 房间 增 | `POST /api/rooms` | code 必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
+| 房间 增 | `POST /api/rooms` | code 可省略（自动 `round-N`），给了就必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
 | 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（库里人数）与 `clients`（活的连接） |
 | 房间 改 | `PATCH /api/rooms/{code}` | 只能改 `event` / `label`；**code 不可改**（已在 URL、已印的二维码、玩家归属里） |
 | 房间 删 | `DELETE /api/rooms/{code}` | **playing / paused 时拒绝（409）**——删引擎会把房间里每台 iPad 晾在半局 |
@@ -80,13 +82,23 @@
 分数为什么要两个接口：游戏上报的是「你得到 +20」，而运营手动纠错时想的是「他应该是 30」。
 同一条路径上放 `delta` 字段会让「要设成 0」和「减 0」长得一样，所以拆成两个语义明确的动作。
 
+### 当前轮（current）与大屏
+
+`GET /api/rooms` 返回 `{current, rooms}`：`current` 是**最近创建**的房间（按 `created_at`），`rooms` 按新到旧排序。
+
+- **大屏 `/display`（不带 code）自动跟随 `current`**：admin 点 `new room` 后，大屏和它上面的加入二维码自己切到新房间，**URL 不用改**（每 3 秒轮询一次 `current`）。
+- **大屏 `/display/:code` 仍然存在**，用于把某块屏固定在某一个房间（排障 / 复盘用）。
+- 玩家侧 `/?room=<code>` → `/r/<code>`，扫码就把人绑到那一轮。
+
+> ⚠️ 玩家**不会**被自动搬到新一轮：他们的页面钉在自己扫的那个 code 上。新一轮开始时，大屏上的二维码会自动变成新房间，玩家重扫即可。要做到「自动跟随」，需要另一次改动（会涉及「人已经在房间里」的语义）。
+
 ### Admin Panel 的结构
 
 左侧是**分区侧边栏**，右侧是当前分区的内容：
 
 | 分区 | 内容 | 数据来源 |
 |---|---|---|
-| **Arcade Console** | 单个控制面板：房间下拉 + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
+| **Arcade Console** | 单个控制面板：房间下拉 + **`new room`（开新一轮）** + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格（见下） | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
 | **Game Setting** | 占位，留给房间默认值 / 节点时长 | — |
 
@@ -94,7 +106,7 @@ Arcade Data 的两张表：
 
 | 表 | 列 |
 |---|---|
-| Rooms | Room、Label、Event、Phase、Node、Joined、Online、`view`（选中该房间并跳到 Players） |
+| Rooms | Room、Label、Event、Phase、Node、Joined、Online、`view`（选中该房间并跳到 Players）；**最新一轮在最上面** |
 | Players | Player、Event、Hallu、Data、Sabotage、Ultimate、Total（按 Total 倒序，无分数行读作 0） |
 
 两张表**共用同一套表头、说明行和数字对齐**，切换时只有数据在变，视觉不跳。Rooms 表最后一列是动作列（表头留空只是 `aria-label`），不是数据列。
