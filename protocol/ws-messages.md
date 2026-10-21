@@ -20,7 +20,7 @@ ws(s)://<host>/api/ws
 { "type": "<string>", "payload": { } }
 ```
 
-前端类型定义：[`arcade_ftw_fe/src/store/gameStore.ts`](../../arcade_ftw_fe/src/store/gameStore.ts) 的 `WsMessage<T>`。
+前端类型定义：[`arcade_ftw_fe/src/store/gameStore.ts`](../../arcade_ftw_fe/src/store/gameStore.ts) 的 `WsMessage`。
 
 ## 已实现
 
@@ -37,13 +37,25 @@ ws(s)://<host>/api/ws
   "phase": "idle | playing | paused | finished",
   "index": 2,
   "node_count": 8,
-  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 20 },
+  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20 },
   "remaining_ms": 16780,
+  "question": {
+    "index": 0,
+    "count": 2,
+    "seconds_each": 20,
+    "remaining_ms": 14320
+  },
   "server_time_ms": 1791733393351
 }
 ```
 
 > 前端**不要用 `server_time_ms` 去算截止时刻**——用 `remaining_ms` 自己在本地换算。给的是时长而不是时刻，所以机器时钟有偏差只会整体平移，不会改变节点长度。
+
+`question` 是**引擎按节点时钟算出的当前题号**（`app/engine.py` 的 `_question()`），不是设备上报的：
+
+- 只有声明了 `questions` + `seconds_each` 的节点才有值，其余节点为 `null`。
+- `idle` / `finished` 时固定给第 1 题、`remaining_ms: 0`，避免前端在无时钟状态下算出越界题号。
+- 大屏靠它展示题面，所有 iPad 的题号因此天然一致；选项仍只留在 iPad 上。
 
 ## 待实现
 
@@ -57,14 +69,14 @@ ws(s)://<host>/api/ws
 当前主线（8 个节点）：
 
 ```json
-{ "type": "intro", "title": "Welcome",        "duration_sec": 10 }
-{ "type": "game",  "game": "hallucination", "title": "Hallucination", "duration_sec": 30 }
-{ "type": "quiz",  "title": "Quiz round 1",   "duration_sec": 20 }
-{ "type": "game",  "game": "data_shadow",   "title": "Data Shadow",   "duration_sec": 30 }
-{ "type": "quiz",  "title": "Quiz round 2",   "duration_sec": 20 }
-{ "type": "game",  "game": "sabotage",      "title": "Sabotage",      "duration_sec": 30 }
-{ "type": "quiz",  "title": "Ultimate Quiz",  "duration_sec": 30 }
-{ "type": "outro", "title": "Wrap up",        "duration_sec": 10 }
+{ "type": "intro", "title": "Welcome",       "duration_sec": 10 }
+{ "type": "game",  "game": "hallucination",  "title": "Hallucination", "duration_sec": 66, "questions": 2, "seconds_each": 30 }
+{ "type": "quiz",  "title": "Quiz round 1",  "duration_sec": 46, "questions": 2, "seconds_each": 20 }
+{ "type": "game",  "game": "data_shadow",    "title": "Data Shadow",   "duration_sec": 51 }
+{ "type": "quiz",  "title": "Quiz round 2",  "duration_sec": 46, "questions": 2, "seconds_each": 20 }
+{ "type": "game",  "game": "sabotage",       "title": "Sabotage",      "duration_sec": 30 }
+{ "type": "quiz",  "title": "Ultimate Quiz", "duration_sec": 46, "questions": 2, "seconds_each": 20 }
+{ "type": "outro", "title": "Wrap up",       "duration_sec": 10 }
 ```
 
 配置源：`arcade_ftw_be/app/flow.py` 的 `ROUND_FLOW`。**改流程只改配置，不改引擎。**

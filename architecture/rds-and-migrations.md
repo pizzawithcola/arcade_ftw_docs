@@ -119,7 +119,7 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 1. **实例规格**：`db.t4g.micro`（**不用** `db.t3.micro`）。
 2. **迁移方式**：CI 里跑**一次性 ECS 任务**（`run-task` + container override `["alembic","upgrade","head"]`），失败即中止、不动线上。
 3. **连接方式**：async SQLAlchemy 2 + asyncpg。
-4. **首个迁移**：只建 `players` 与长表 `scores`。
+4. **首个迁移**：只建 `players` 与 `scores`（当时是长表，已由 `c4f1a9b7e2d5` 取代为宽表）。
 
 ### 实测得到的细节
 
@@ -130,7 +130,7 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 | 安全组 | `arcade-ftw-rds-sg`，5432 仅允许来自 `arcade-ftw-ecs-sg` |
 | 端点 | `arcade-ftw-db.ctao8iuy2toz.ap-south-1.rds.amazonaws.com:5432` |
 | 密钥 | RDS 托管，ARN `.../secret:rds!db-57437a62-...-iRC7r4`，JSON 键为 `['password','username']` |
-| 迁移 revision | `0d85f32b238d`（含可用的 `downgrade()`）|
+| 迁移 revision | 当前 head `e8b3d5c1a712`（rooms 与成员归属）；首个迁移 `0d85f32b238d` 含可用的 `downgrade()` |
 
 > ⚠️ **`EngineVersion` 必须给具体小版本**（如 `16.15`）——只写 `16` 会被 RDS 拒绝（`deprecated ... cannot be used to create new RDS DB instances`）。已做成参数便于将来升级。
 > ⚠️ **`PreferredBackupWindow` 只接受 `hh24:mi-hh24:mi`**，不带星期前缀；**维护窗口**才用 `ddd:hh24:mi-ddd:hh24:mi` 形式。

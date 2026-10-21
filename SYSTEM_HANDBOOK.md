@@ -3,6 +3,7 @@
 > ⚠️ **开工前请先完整读完本文件。** 本文件是 `arcade_ftw` 的权威来源，自包含，不依赖会话记忆。
 >
 > - 生成日期：2026-10-11
+> - 最近同步：2026-10-19（文档对齐当前代码：三个真实游戏、房间/玩家/分数、等待室与题目索引）
 > - 上一代系统（`cyber_ai_festival` / `cyber_ai_festival_be`）的权威文档在其前端 repo 的 `doc/SYSTEM_HANDBOOK.md`；**本文件不复制它的内容**，只引用。
 
 ---
@@ -17,21 +18,24 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 | repo | 技术栈 | 状态 |
 |---|---|---|
-| `arcade_ftw_fe` | React 19 + TypeScript + Vite + zustand | 骨架已起 |
-| `arcade_ftw_be` | FastAPI + Python 3.12 | 骨架已起 |
+| `arcade_ftw_fe` | React 19 + TypeScript + Vite + zustand | 已上线，迭代中 |
+| `arcade_ftw_be` | FastAPI + Python 3.12 | 已上线，迭代中 |
 | `arcade_ftw_docs` | 本 repo | — |
 
 **为什么 polyrepo**：见 [architecture/decisions](./architecture/decisions)。CI 天然按 repo 隔离，不存在 monorepo「前端提交误触发后端部署 → 清空内存态房间」的风险。
 
-## 3. 当前状态（阶段 0：骨架）
+## 3. 当前状态
+
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 8 个节点 → 收尾；三个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow），房间 / 玩家 / 分数已数据化，前后端已部署到 AWS。
 
 已完成：
 
-- 前端：Vite + React 19 + TS 脚手架，zustand 中央 store（`src/store/gameStore.ts`）
-- 后端：FastAPI 入口（`/health`、CORS）、状态机（`app/engine.py`）、流程配置（`app/flow.py`）、WS 端点（`app/ws.py`）、题型注册表（`app/question_types/`）
-- 前后端依赖已安装、构建/接口/WS 均已验证通过
+- 前端：React 19 + Vite + TS + zustand；四条 UI 路线（登录 / 玩家 / 大屏 / 管理台）；三个真实玩法（Hallucination、Quiz、Data Shadow）；等待室、跟随当前轮、题目索引与大屏题面
+- 后端：FastAPI 入口（`/health`、`/health/db`、`/api/*`）、按房间隔离的状态机（`app/engine.py`）、流程配置（`app/flow.py`）、WS 推送（`app/ws.py`）、房间 / 玩家 / 分数接口、HMAC 令牌鉴权
+- 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores`
+- 运维：CloudFormation 双栈、OIDC 零密钥 CI、CloudFront 同源部署
 
-未完成：主线流程、多题型、管理员控制、数据库、AWS。
+未完成：答案上报与游戏写分、Sabotage 游戏界面、题库后端化与题型注册表接线、AWS 剩余项（见第 6 节）。
 
 ## 4. 与上一代系统的关系
 
@@ -39,7 +43,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 |---|---|
 | 代码 | **不迁移**旧游戏代码；旧系统冻结 |
 | 可复用 | UI 组件库 / 主题 / 部署管道模式 |
-| AWS | **隔离优先**：除 VPC/子网外全部新建，资源名用 `arcade_ftw-` 前缀 |
+| AWS | **隔离优先**：除 VPC/子网外全部新建，资源名用 `arcade-ftw-` 前缀 |
 | 数据库 | 全新实例，不碰旧库 |
 | 文档 | 本 repo 为权威；旧系统文档不动 |
 
@@ -49,8 +53,8 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 2. **端口 1688 绝不可碰**（旧系统本地 dev 服务）；本项目 dev 端口为前端 **5070** / 后端 **5071**——验证或起临时服务时都不要占用它们，另起 169x 等空闲端口。
 3. **WS 是进程内内存态**——单进程运行，禁止多 worker；换 task 会清空房间，活动期间禁止重启后端容器。
 4. **后端镜像必须 `--platform linux/amd64`**（Mac arm64 直 build 会得到 arm64 镜像，Fargate 起不来）。
-5. **CloudFront 会把 403/404 重写成 `200 + index.html`**——后端错误会伪装成 `200 text/html`；判定成功必须校验 content-type，不能只看 `res.ok`。
-6. **调 API 一律带尾斜杠**（旧系统行为白名单不含裸路径，裸 `/users` 会落到 S3）。
+5. **CloudFront 的 SPA 回退会把「不存在的对象」变成 `200 + index.html`**——本系统只在 **S3 行为**上启用该函数，`/api/*` 的错误保持真实状态码；但任何「只看状态码」的健康检查仍可能被骗，判定成功必须校验 `content-type`。
+6. **游戏接口一律挂在 `/api/*` 下**——CloudFront 用一条 `/api/*` 行为代理到 ALB，路径结尾带不带斜杠都能命中（前端实际都用裸路径，如 `/api/rooms`）；**根路径没有反向代理**，漏掉 `/api` 前缀会落到 S3。
 7. 凡用 storage 做「跨刷新保持」的状态，必须列出所有**生命周期结束点**并逐个清理（旧系统踩过跨局残留）。
 8. **依赖要 pin 版本**（旧系统因未 pin 被新版 SQLAlchemy 引爆过）。
 
@@ -63,10 +67,11 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] CI 已接通并实测成功（OIDC，零密钥，一次部署约 4.5–5 分钟，含数据库迁移）
 - [x] 数据库链路已打通：RDS `arcade-ftw-db` + Alembic，迁移在 CI 里于滚动更新前执行
 - [x] 前端部署：S3 + CloudFront（站点与 API 同源），前端 CI 走 OIDC，真实浏览器验证三项全绿
-- [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染占位屏 + 倒计时；管理员可 pause / resume / finish / 跳节点
-- [ ] AWS 剩余项（Secrets Manager 保存密钥、自定义域名 + ACM）见 [aws/](./aws)
-- [ ] 前端仍是**占位屏**：没有真实游戏界面、没有题型渲染器
-- [ ] 题型注册表仍只有 `choice` 一个示例；题库无存储
+- [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染 + 倒计时（当时的占位屏已由真实游戏替换）；管理员可 pause / resume / finish / 跳节点
+- [ ] AWS 剩余项（Secrets Manager 保存 `SecretKey` / `AdminPassword`、自定义域名 + ACM）见 [aws/](./aws)
+- [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
+- [ ] **Sabotage 仍是占位屏**（`src/games/` 下尚无该游戏），节点照常倒计时推进
+- [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` 三张表，房间是数据（`main` 由迁移 seed），成员记在 `players.room_code`
 - [x] 房间 / 玩家 / 分数的增删改查接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
 - [x] **room = 一轮游戏**：admin 新建 `round-N`，大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**

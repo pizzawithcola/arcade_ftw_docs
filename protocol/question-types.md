@@ -26,8 +26,10 @@ QUESTION_TYPES: dict[str, QuestionType] = {
 
 ## 现状与规划
 
+> ⚠️ **注册表目前是占位实现**：引擎与 WS 还没有题目下发 / 答案上报链路，`QUESTION_TYPES` 尚未被调用。现在三个游戏的题目和计分都在前端（`arcade_ftw_fe/src/games/*`），答案不落库。下表的「已实现」仅指处理器本身存在。
+
 | type_key | 状态 |
 |---|---|
-| `choice` | ✅ 已实现（示例，`choice.py`）|
-| `trust_doubt` | ⬜ 待实现（信任 / 怀疑）|
+| `choice` | ✅ 处理器已实现（示例，`choice.py`），未接线 |
+| `trust_doubt` | ⬜ 待实现（信任 / 怀疑）；前端 Hallucination 已按该玩法实现，但未复用此注册表 |
 | `interactive` | ⬜ 待实现（互动题）|

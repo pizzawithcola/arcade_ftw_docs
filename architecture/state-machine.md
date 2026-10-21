@@ -54,7 +54,7 @@
 暂停中跳到第 4 节点 → 按 resume → 正确播放第 4 节点 ✅
 ```
 
-前端据此刻意把 `start` **只在 `idle` / `finished` 时可点**（`playing` 期间 `start` 本来就是纯无操作），让这个陷阱无法从界面上触发。但从 `/api/docs` 或 curl 直接打 API 仍会命中，**用 API 操作时请自己注意**。
+⚠️ **控制台不会阻止这个陷阱**：`start / pause / resume / finish / reset` 在当前实现里只在请求进行中禁用，并不按 phase 灰掉。所以「暂停 → 跳节点 → 按 start」仍会弹回第 1 节点。现场操作的硬规则是：**跳节点之后按 `resume`，永远不要按 `start`**。`start` 只用于「从头开演」（idle / finished）。
 
 ### `reset` 用在哪
 
@@ -75,11 +75,14 @@
   "phase": "playing",
   "index": 2,
   "node_count": 8,
-  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 20 },
+  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20 },
   "remaining_ms": 16780,
+  "question": { "index": 0, "count": 2, "seconds_each": 20, "remaining_ms": 14320 },
   "server_time_ms": 1791733393351
 }
 ```
+
+`question` 由 `Engine._question()` 从节点时钟推导，仅对声明了 `questions` / `seconds_each` 的节点有值；`idle` / `finished` 时固定为第 1 题、`remaining_ms: 0`。详见 [WS 协议](../protocol/ws-messages.md)。
 
 ## 广播
 
@@ -88,7 +91,7 @@
 ## 已知的坑（都已在代码与测试中体现）
 
 1. **新节点的广播必须带非零剩余时间**：最初 `_arm()` 是在守卫任务里延迟执行的，导致新节点广播出去时 `remaining_ms` 是 `0`，客户端会**永远卡在 0:00**。现在 `start()` / `go_to()` / 推进时都**先装填时钟再通知**，并有回归测试。
-2. **后台标签页的倒计时会冻结**：浏览器节流隐藏标签页的 `setInterval`，`now` 变旧 → 剩余时间**偏大且不动**。修法是 `visibilitychange` / `focus` 时立刻刷新（`useTicker`）。排查时不要误判为引擎问题——**先和服务端 `/api/game/state` 对拍**。
+2. **后台标签页的倒计时会冻结**：浏览器节流隐藏标签页的 `setInterval`，`now` 变旧 → 剩余时间**偏大且不动**。修法是 `visibilitychange` / `focus` 时立刻刷新（`useTicker`）。排查时不要误判为引擎问题——**先和服务端 `/api/rooms/{code}/state` 对拍**。
 3. **暂停中跳转曾把屏幕停在 0:00**：`go_to()` 原来无条件把剩余时间清零，于是「暂停 → 跳转」后大屏显示 `0:00`，看起来像节点没有时长。现在若跳转后仍是 `paused`，就把**新节点的满时长**装进剩余时间。注意 `resume()` 里写的是 `self._remaining or self._duration()`——剩余为 0 时会回退到满时长，所以这个修复也让「跳转后 resume」播放的是**目标节点**的时长，而不是第 1 节点的。
 4. **内存态**：引擎是进程内单例。单进程运行、禁止多 worker；**替换容器 = 重置整场节目**。
 

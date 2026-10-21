@@ -9,7 +9,8 @@
 | `/` | 玩家入口（昵称 + 活动）| 所有人 |
 | `/play` | User View：**自动进入当前轮**；等待室三行字，开演后是游戏 | 玩家令牌 |
 | `/r/:code` | User View 的固定版：钉在某个房间（排障用）| 玩家令牌 |
-| `/display/:code` | Display View：大屏展示 | admin（含只读 display 令牌）|
+| `/display` | Display View：大屏展示，自动跟随当前轮 | admin（含只读 display 令牌）|
+| `/display/:code` | Display View 的固定版：钉在某个房间（排障 / 复盘）| admin（含只读 display 令牌）|
 | `/admin` | Admin Panel：侧边栏三块（Console / Data / Setting）| admin（**必须 full scope**）|
 
 `/status` 保留为诊断页。
@@ -38,7 +39,7 @@
 
 ### 房间是数据
 
-**room = 一轮游戏**。每轮由 admin 新建一个房间（`round-1`、`round-2`…，也可以自己给 code），玩家扫码加入后**绑定到那一轮**。所以房间列表是**历史**，最新创建的那个是「当前轮」。
+**room = 一轮游戏**。每轮由 admin 新建一个房间（`round-1`、`round-2`…，也可以自己给 code）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。所以房间列表是**历史**，最新创建的那个是「当前轮」。
 
 房间有行：`rooms(code PK, event, label, created_at)`，`main` 由迁移 seed（第一轮之前的占位）。启动时 `RoomRegistry.load()` 读这张表建引擎；**读库失败只记警告并退回默认房间**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉。
 
@@ -73,7 +74,7 @@
 |---|---|---|
 | 房间 增 | `POST /api/rooms` | code 可省略（自动 `round-N`），给了就必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
 | 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（库里人数）与 `clients`（活的连接） |
-| 房间 改 | `PATCH /api/rooms/{code}` | 只能改 `event` / `label`；**code 不可改**（已在 URL、已印的二维码、玩家归属里） |
+| 房间 改 | `PATCH /api/rooms/{code}` | 只能改 `event` / `label`；**code 不可改**（已在 URL、`/r/{code}` 排障链接和玩家归属里） |
 | 房间 删 | `DELETE /api/rooms/{code}` | **playing / paused 时拒绝（409）**——删引擎会把房间里每台 iPad 晾在半局 |
 | 玩家 增 | `POST /api/rooms/{code}/players` | 操作员替玩家建成员（设备掉了人还在名单上），重名照常编号 |
 | 玩家 查 | `GET /api/players`、`GET /api/players/{id}` | 支持 `?room=` / `?event=` 过滤，带 `total_score` |

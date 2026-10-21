@@ -67,8 +67,8 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 1. **后端镜像必须 `--platform linux/amd64`**（本地 Mac 构建时）。GitHub runner 本身是 amd64，CI 不受影响。
 2. **任务子网必须落在 ALB 已启用的 AZ**（旧系统曾因此约 1/3 概率部署失败）。
 3. **任务子网需有 egress**：旧 VPC 无 NAT 网关，故 `AssignPublicIp: ENABLED` 必须保持。
-4. **CloudFront 200 伪装**：行为白名单 + 错误重写没配好，任何后端错误都会变成 `200 text/html`（前端那步处理）。
-5. **调 API 带尾斜杠**（否则裸路径落 S3）。
+4. **CloudFront 200 伪装**：旧系统把分发级 `403/404` 重写成 `200 /index.html`，任何后端错误都变成 `200 text/html`。本系统改为**只在 S3 行为上**用 CloudFront Function 做 SPA 回退，`/api/*` 的 404/5xx 保持真实状态码；验证仍要校验 `content-type`。
+5. **游戏接口全部挂在 `/api` 下**——CloudFront 的 `/api/*` 行为覆盖任意子路径，**不需要尾斜杠**；漏掉 `/api` 前缀才会落到 S3。
 6. 用 `curl -w '%{content_type}'` 区分 `application/json` vs `text/html` 来排查。
 7. 旧模板里 `!Ref` 传给 `TaskRoleArn` / `ExecutionRoleArn` 是**错的**（`Ref` 返回 role 名而非 ARN，需 `!GetAtt X.Arn`）；新模板已修正。
 8. 基础镜像使用 `public.ecr.aws/docker/library/python:3.12-slim`，避开 Docker Hub 匿名拉取限流（否则 CI 会随机失败）。
@@ -197,7 +197,7 @@ aws cloudformation delete-stack --stack-name arcade-ftw --region ap-south-1
 - [x] 接通 CI —— 改用 **GitHub OIDC**，无需任何 GitHub secret
 - [x] 建 RDS（`arcade-ftw-db`）+ Alembic 迁移链路 —— 数据库改动已可一键部署
 - [x] 前端部署：S3 + CloudFront（站点与 API **同源**），前端 CI 走 OIDC
-- [ ] 建 Secrets Manager 保存 `API_KEY`，把它从任务定义明文 env 迁走
+- [ ] 建 Secrets Manager 保存 `SecretKey` / `AdminPassword`，把它们从任务定义明文 env 迁走（RDS 主密码已由 RDS 托管）
 - [ ] 考虑把 `arcade_ftw_be` / `arcade_ftw_fe` 转为 private（目前都是 public）
 - [ ] 考虑给 CloudFront 配自定义域名 + ACM 证书（目前用 `*.cloudfront.net`）
 
