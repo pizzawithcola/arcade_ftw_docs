@@ -71,7 +71,7 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 5. **游戏接口全部挂在 `/api` 下**——CloudFront 的 `/api/*` 行为覆盖任意子路径，**不需要尾斜杠**；漏掉 `/api` 前缀才会落到 S3。
 6. 用 `curl -w '%{content_type}'` 区分 `application/json` vs `text/html` 来排查。
 7. 旧模板里 `!Ref` 传给 `TaskRoleArn` / `ExecutionRoleArn` 是**错的**（`Ref` 返回 role 名而非 ARN，需 `!GetAtt X.Arn`）；新模板已修正。
-8. 基础镜像使用 `public.ecr.aws/docker/library/python:3.12-slim`，避开 Docker Hub 匿名拉取限流（否则 CI 会随机失败）。
+8. **基础镜像已镜像到自己的 ECR**：`public.ecr.aws/docker/library/python:3.12-slim` 会随机 429 限流（CI 连续 3 次失败），现已镜像到 `866730904414.dkr.ecr.ap-south-1.amazonaws.com/arcade-ftw-backend:python-base-3.12-slim`，Dockerfile 改 `FROM` 自己的 ECR。刷新镜像的命令写在 Dockerfile 顶部注释里。
 9. 本地校验工具：`actionlint`（workflow）+ `hadolint`（Dockerfile）+ `cfn-lint`（模板），见下节。
 10. **本机网络对部分域名是白名单制**（实测）：`registry-1.docker.io`、`github.com`、`mirror.gcr.io` **不通**；`public.ecr.aws`、`ghcr.io`、`api.github.com`、`pypi.org`、`registry.npmjs.org` **通**。这会决定你能否本地构建/下载工具——遇到超时先怀疑它，别改代码。
 11. **`EngineVersion` 必须给具体 PostgreSQL 小版本**（如 `16.15`）；只写 `16` 会被 RDS 拒绝。
@@ -88,6 +88,9 @@ aws ecs update-service --cluster arcade-ftw-cluster --service arcade-ftw-service
 22. **CI 与栈更新是两个互不知道的写者，方向不对称，要分清**：
     - **CI 读线上的 task definition**，只替换镜像 tag → 所以**代码推送不会把改过的环境变量（如管理员密码）打回模板默认值**。
     - **反过来栈更新会赢**：`AWS::ECS::TaskDefinition` 是按模板重新生成一个 revision 并让服务指向它，于是服务从 CI 上次固定的 `<sha>` 回到模板里的 `:latest`。内容其实相同（CI 两个 tag 同推、digest 一致，已实测），但**不再是精确版本**——想要可追溯的版本号，栈更新后跑一次 CI（或直接 `update-service` 指回该 SHA 的 revision）。
+23. **base 镜像放 backend 仓库的 `python-base-*` tag，不要新建独立 ECR 仓库**：CI 部署角色的 ECR 权限只覆盖 `arcade-ftw-backend`（它要 push app 镜像），新建 `arcade-ftw-python-base` 会让 CI 拉取 base 时 **403 Forbidden**。
+24. **本机 `docker pull` 默认拉本机架构**：Mac 是 arm64，直接 `pull → tag → push` 会把 arm64 base 镜像传上去，CI（amd64 runner）构建时报 `exec /bin/sh: exec format error`。镜像 base 必须 `docker pull --platform linux/amd64 ...`（与第 1 条同一红线，只是这次踩在 base 镜像上）。
+25. **CI 构建失败的定位方法**：看 `list_workflow_jobs` 的 step 耗时——**20 秒内失败**多半是 build 早期（base 镜像拉取 429/403）；**十几秒后失败**是 base 拉成功但后面出错（`exec format error`、pip 安装）。先定位 step 再看日志，别盲目重试。
 23. **改单个参数别重发全部参数**：`update-stack --use-previous-template` + 逐个 `UsePreviousValue: true`，可以让 `SecretKey` 这类值**完全不经过命令行与 shell 历史**。注意 `update-stack` **必须显式带 `--capabilities CAPABILITY_NAMED_IAM`**，即使这次改动本身不碰 IAM。
 24. **SPA 回退会让「不存在的路径」返回 200，从而骗过任何只看状态码的检查。** `/docs` 曾经「测试通过」——实际返回的是 `text/html` 的 React 页面，因为后端只服务 `/api/*`，根路径落到了 S3 源站，而 SPA 函数把「对象不存在」改写成了 `index.html`。**失败特征**：无扩展名的路径（`/docs`）被改写成 `index.html` 返回 `200`；带扩展名的路径（`/openapi.json`）不被改写，返回真实 `403 AccessDenied`。**教训**：验证 CDN 后的端点时必须断言 `content-type` 和响应体内容，不能只看状态码。CI 已按此加了 `/api/openapi.json` 检查。
 25. **后端所有路由都挂在 `/api` 下**，因为 CloudFront 只有一条 `/api/*` 行为指向后端（外加 `/health*` 供 ALB 探活）。**新增端点不需要动 IaC**——但如果把端点挂在根路径，它就会静默地落到 S3 上。（FastAPI 的 `docs_url` / `openapi_url` 因此也是 `/api/docs` / `/api/openapi.json`。）
