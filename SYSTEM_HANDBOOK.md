@@ -32,10 +32,10 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 - 前端：React 19 + Vite + TS + zustand；四条 UI 路线（登录 / 玩家 / 大屏 / 管理台）；三个真实玩法（Hallucination、Quiz、Data Shadow）；等待室、跟随当前轮、题目索引与大屏题面
 - 后端：FastAPI 入口（`/health`、`/health/db`、`/api/*`）、按房间隔离的状态机（`app/engine.py`）、流程配置（`app/flow.py`）、WS 推送（`app/ws.py`）、房间 / 玩家 / 分数接口、HMAC 令牌鉴权
-- 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores`
+- 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores` / `score_events`
 - 运维：CloudFormation 双栈、OIDC 零密钥 CI、CloudFront 同源部署
 
-未完成：答案上报与游戏写分、Sabotage 游戏界面、题库后端化与题型注册表接线、AWS 剩余项（见第 6 节）。
+未完成：Sabotage 游戏界面、题库后端化与题型注册表接线、逐题答案存储与大屏聚合、AWS 剩余项（见第 6 节与 [TODO](./TODO.md)）。
 
 ## 4. 与上一代系统的关系
 
@@ -79,7 +79,8 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] 大屏展示题目（索引由引擎按 `questions`/`seconds_each` 算出），选项只在玩家屏
 - [x] 大屏空闲态 = **等待室**：Waiting Room + 已加入玩家名墙 + 人数（无二维码/网址/房间号，`qrcode.react` 已移除）
 - [x] Admin Data 分区可对房间/玩家**新增、编辑、删除**（分数仍走接口）
-- [ ] `scores` 仍**没有游戏写入**——只有管理员改分接口，答案上报链路未做，所以名单总分默认 0
+- [x] `scores` 由游戏写入：玩家用自己令牌 `POST /api/me/score`，按题幂等累加到四个分区（`ScoreEvent` 表去重）
+- [ ] 逐题**答案**未落库，所以大屏做不了选项分布；答案存下来后才能做全场聚合
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版
 
 ---

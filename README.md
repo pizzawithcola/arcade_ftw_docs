@@ -25,6 +25,7 @@ flowchart LR
 | 路径 | 内容 |
 |---|---|
 | [SYSTEM_HANDBOOK.md](./SYSTEM_HANDBOOK.md) | 跨 session 共享 memory（**开工前必读**）|
+| [TODO.md](./TODO.md) | 待办清单（按优先级，含验收标准）|
 | [architecture/](./architecture) | 状态机语义、三个视图与房间、RDS 与迁移方案、架构决策记录（ADR）|
 | [games/](./games) | 每个游戏节点的玩法与计分规则 |
 | [protocol/](./protocol) | 前后端契约：WS 消息、题型定义 |

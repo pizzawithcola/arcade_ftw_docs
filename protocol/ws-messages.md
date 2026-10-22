@@ -37,7 +37,7 @@ ws(s)://<host>/api/ws
   "phase": "idle | playing | paused | finished",
   "index": 2,
   "node_count": 8,
-  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20 },
+  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" },
   "remaining_ms": 16780,
   "question": {
     "index": 0,
@@ -70,12 +70,12 @@ ws(s)://<host>/api/ws
 
 ```json
 { "type": "intro", "title": "Welcome",       "duration_sec": 10 }
-{ "type": "game",  "game": "hallucination",  "title": "Hallucination", "duration_sec": 66, "questions": 2, "seconds_each": 30 }
-{ "type": "quiz",  "title": "Quiz round 1",  "duration_sec": 46, "questions": 2, "seconds_each": 20 }
-{ "type": "game",  "game": "data_shadow",    "title": "Data Shadow",   "duration_sec": 51 }
-{ "type": "quiz",  "title": "Quiz round 2",  "duration_sec": 46, "questions": 2, "seconds_each": 20 }
-{ "type": "game",  "game": "sabotage",       "title": "Sabotage",      "duration_sec": 30 }
-{ "type": "quiz",  "title": "Ultimate Quiz", "duration_sec": 46, "questions": 2, "seconds_each": 20 }
+{ "type": "game",  "game": "hallucination",  "title": "Hallucination", "duration_sec": 66, "questions": 2, "seconds_each": 30, "score": "hallucination" }
+{ "type": "quiz",  "title": "Quiz round 1",  "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" }
+{ "type": "game",  "game": "data_shadow",    "title": "Data Shadow",   "duration_sec": 51, "score": "data" }
+{ "type": "quiz",  "title": "Quiz round 2",  "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "data" }
+{ "type": "game",  "game": "sabotage",       "title": "Sabotage",      "duration_sec": 30, "score": "sabotage" }
+{ "type": "quiz",  "title": "Ultimate Quiz", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "ultimate" }
 { "type": "outro", "title": "Wrap up",       "duration_sec": 10 }
 ```
 
@@ -87,5 +87,7 @@ ws(s)://<host>/api/ws
 - **`game` = 具体游戏**，只出现在 `game` 节点上。三个游戏外观完全不同，但共用一个类别——所以**前端在自己那一层按 `game` 分派界面**，`type` 保持宽泛。
 
 前端用两个 class 落地这件事：`stage--game`（共用的游戏版式）**加** `stage--hallucination`（该游戏专属的钩子）。只给类别 class 的话，三个游戏会共用一个不可区分的钩子。
+
+**`score` = 计分分区**：只有计分节点才有，取值 `hallucination` / `data` / `sabotage` / `ultimate`。游戏与其后的 quiz 共用同一个分区，服务端据此决定玩家上报的分数写哪一列（详见 [views](../architecture/views.md)）。
 
 **`title` 纯展示**：观众看它，代码永远不拿它做分支。正因如此，两轮普通 quiz 和最后的 Ultimate Quiz 可以都是 `type: "quiz"`，而代码不需要区分它们。

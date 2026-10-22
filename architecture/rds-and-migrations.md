@@ -55,7 +55,7 @@
 - **SQLAlchemy 2 async + asyncpg**（旧手册 §13.5 的建议，避免同步调用阻塞事件循环）
 - **Alembic** 管理 schema：`alembic.ini` + `app/migrations/`
 
-当前 schema（迁移 `e8b3d5c1a712` 之后）：
+当前 schema（迁移 `5f2d983893bf` 之后）：
 
 ```sql
 rooms(code, event, label, created_at)
@@ -70,6 +70,12 @@ scores(player_id, hallucination_score, data_score, sabotage_score, ultimate_scor
        total_score, updated_at)
         -- 主键 (player_id)，FK → players(id) ON DELETE CASCADE
         -- total_score 是数据库生成列 = 四个分数之和
+        -- 四个分项 = 四个分区（游戏 + 其后的 quiz），见 views.md
+
+score_events(player_id, event_key, points, created_at)
+        -- 主键 (player_id, event_key)，FK → players(id) ON DELETE CASCADE
+        -- 分数上报的幂等记录；event_key = 房间:节点序号:题号|total
+        -- 只有真正插入的那条才累加 scores，重复上报是 no-op
 ```
 
 **房间从「内存里的默认值」变成数据**：`RoomRegistry` 启动时读 `rooms` 建每个房间的引擎，
@@ -149,5 +155,5 @@ CI 角色需补权限：`ecs:RunTask`、`ecs:DescribeTasks`、`iam:PassRole`。
 
 - **迁移不可自动回滚**：代码能回滚，schema 不能。迁移脚本必须自带可用的 `downgrade()`，回滚靠人工决定。
 - 部署时间从 3.5 分钟增加到 **约 4.5–5 分钟**（多一次迁移任务）。
-- `rooms` / `players.room_code` 已有 API 使用（建房间 / join / 名单）；`scores` **只有管理员改分接口**（`PUT` 设值、`adjust` 增量），游戏答案上报链路未做，所以名单里的总分默认仍是 0。
+- `rooms` / `players.room_code` 已有 API 使用（建房间 / join / 名单）。`scores` 有三个写入方：玩家上报（`POST /api/me/score`，按题幂等）与管理员设值 / 增量（`PUT` / `adjust`）。逐题**答案**没有保存，所以只能做分数累加，做不了选项分布。
 - 应用启动**不建表**，schema 只由迁移创建。

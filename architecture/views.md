@@ -29,6 +29,7 @@
 /api/rooms/{code}/join            # 玩家把自己记进该房间
 /api/rooms/{code}/players         # 房间名单（玩家只见昵称，admin/display 见总分）
 /api/players/{id}/score           # 分数读写（管理员）
+/api/me/score                     # 玩家上报自己某一题/整节点的得分
 /api/rooms                        # 房间 CRUD（POST 建、PATCH 改、DELETE 删）
 /api/ws?room={code}
 ```
@@ -65,6 +66,35 @@
 - **玩家等待室只显示三行**：`AI Cyber Arcade` + 活动名、`Hi, <昵称>`、`Waiting for the host to start the show…`，屏幕居中，**没有名单、没有时钟、没有顶栏**。
   名单是给大厅屏幕（大屏）看的，玩家自己的 iPad 上列一遍别人的名字没有意义。
 - 大屏的等待室每 **2 秒** 轮询一次名单（不走 WS：socket 传的是节目，不是宾客名单）。
+
+### 分数上报（玩家自助）
+
+**四个分区**，一个分区 = 一场游戏 + 紧随其后的 quiz：
+
+| `scores` 列 | 计入的节点 |
+|---|---|
+| `hallucination_score` | Hallucination + Quiz round 1 |
+| `data_score` | Data Shadow + Quiz round 2 |
+| `sabotage_score` | Sabotage |
+| `ultimate_score` | Ultimate Quiz |
+
+节点在 `flow.py` 里用 `score: <分区>` 声明归属；**服务端据此决定写哪一列，客户端不能指定列**。
+
+上报接口 `POST /api/me/score`：
+
+```json
+{ "room": "round-1", "node_index": 1, "question": 0, "points": 20 }
+```
+
+- **玩家令牌**（`require_player`）：管理员令牌会被拒绝，操作员不参与比赛。
+- **必须已加入该房间**：`player.room_code` 不匹配 → 409。
+- **节点必须声明了 `score`**：intro / outro / 未知节点 → 422。
+- **按题幂等**：事件键由服务端拼成 `房间:节点序号:题号`（整节点提交用 `total`），写入 `score_events`（主键 `(player_id, event_key)`）与累加分区在同一事务里。重复上报返回 `applied: false`，分数不变。
+- **允许负分**：Hallucination 的质疑侧与 Data Shadow 的误报都会扣分；0 分前端直接跳过。
+
+为什么按「题」而不是「节点」幂等：一局有多题，用节点键会让整局只能计一次；用题号既能让每题各自计分，又能让重试和「回退重跑同一节点」都不重复计分。
+
+> ⚠️ **分数由客户端计算**：题目目前在前端（`content.ts`），后端没有题目数据，所以只能信任设备上报（单条限 ±1000）。题库搬到后端后才有可能改成服务端计分。
 
 ### 管理接口（阶段 2 的第一块）
 
@@ -149,7 +179,7 @@ Arcade Data 的两张表：
 
 **大屏始终显示倒计时**——大屏上只有一个时钟，不像玩家屏幕会和游戏自己的计时器打架。
 
-> ⚠️ 目前只有 **Data Shadow** 能在大屏显示真实内容（它是一条静态帖子）。Hallucination 和 Quiz 依赖「当前是第几题」的**设备内状态**，服务端不知道，所以大屏暂时只显示「Answer on your iPad」。等答案上报链路（阶段 3）落地，服务端才知道当前题目，大屏才能显示题面与分布。
+> ✅ Hallucination 与 Quiz 的**题面**会显示在大屏上：引擎下发 `snapshot.question`（当前第几题），大屏据此取题。**选项仍只留在 iPad**，大屏不显示答案分布——那需要答案聚合，目前只有分数上报，没有逐题答案落库。
 
 ## 玩家身份：一台设备一个人
 
@@ -161,9 +191,9 @@ Arcade Data 的两张表：
 
 这条不是锦上添花：人手一台时重名几乎必然发生，而错误合并要等到分数落库（阶段 3）才会暴露。
 
-## 已知限制（阶段 1）
+## 已知限制
 
-- **还没有答案上报**，所以大屏没有聚合数据；名单里的总分此刻恒为 0（`scores` 没有写入方）。
-- **只有 `main` 一个房间**：建房间接口可用，但 Admin 面板里的房间操作仍是只读展示（没有「新建 / 删除」按钮）。
+- **分数已自动落库**（`POST /api/me/score`，按题幂等）；但**逐题答案没有存**，所以做不了「全场选 A/B/C/D 分布」这类聚合。大屏显示题面靠引擎的题号，不靠答案。
+- **Sabotage 仍是占位屏**，`sabotage_score` 目前没有写入方。
 - **Admin 面板不能改分数**：房间/玩家的增删改已进面板，分数仍走 `/api/docs`。
-- 玩家分数仍只存在于页面内存，刷新即清零。
+- **分数由客户端计算**：题目还在前端，后端无法独立核算。
