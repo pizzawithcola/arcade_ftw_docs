@@ -3,9 +3,9 @@
 主流程第 6 个节点（`type: game`，`game: sabotage`）。
 设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。目前**仍是占位屏**，本文是落地前的设计拆解。
 
-> 状态：**设计已定稿（M0）+ 团队分配（M1）+ 引擎/投票（M2）+ 流程接入与 WS 广播（M3）均已实现**。前端（M4）与结算写库（M5）尚未实现。
+> 状态：**已完整实现（M0–M5）**——设计、团队分配、引擎/投票、流程接入、前端界面与结算写库全部就绪。
 >
-> 模块进度：M0 ✅ 设计定稿 · M1 ✅ 团队分配 · M2 ✅ 引擎+投票 · M3 ✅ 流程接入 · M4 ⬜ 前端 · M5 ⬜ 结算联调
+> 模块进度：M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4 ✅ 前端 · M5 ✅ 结算联调
 
 ## 一句话
 
@@ -157,12 +157,16 @@ Sabotage 需要玩家提交投票。两个方案：
 | 后端 | 团队分配 `POST /api/rooms/{code}/teams/assign` | ✅ M1 | admin 触发，按 id 交替均分、可重跑、幂等 |
 | 后端 | `app/sabotage.py` | ✅ M2 | 房间级 SabotageEngine：budgets、shared_attack_spent、votes、团队分、状态机（team_reveal → attack → defend → resolve ×3 → team_result → payout → done），单调时钟自推进 |
 | 后端 | 投票接口 | ✅ M2 | `POST /api/sabotage/{room}/vote`（玩家令牌，body: card）；`/start`（admin）；`/state`（公开）|
-| 后端 | 结算写分 | ⬜ M5 | 三轮后按团队总分对每个队员写同一个 `scores.sabotage_score` |
-| 前端 | `games/sabotage/` | ⬜ M4 | 投票屏（选卡、已选高亮、倒计时）、团队揭晓屏、结果屏 |
-| 前端 | 大屏 | ⬜ M4 | 攻击/防守情景、隐藏票数、截止揭晓、SPENT 卡片墙 |
+| 后端 | 结算写分 | ✅ M5 | 引擎到 `done` 时把每个队员的 `sabotage_score` 写成各自团队总分（服务端结算，玩家不上报）|
+| 前端 | `games/sabotage/` | ✅ M4 | 投票屏（选卡、已选高亮、倒计时）、团队揭晓屏、结果屏；卡牌元数据由快照 `cards` 下发，不硬编码 |
+| 前端 | 大屏 | ✅ M4 | 攻击/防守情景、隐藏票数、截止揭晓、SPENT 卡片墙 |
 | 配置 | `app/sabotage_config.py` | ✅ M2 | 卡牌、6×6 效果矩阵、剧本、计时、预算（改配置不改代码） |
 
 **不需要新建**：WS 通道、鉴权依赖、分数表结构（`sabotage_score` 已存在）、房间/玩家 CRUD。
+
+### 自动开赛（admin 零操作）
+
+主流程推进到 Sabotage 节点（`flow.py` 里 `game: "sabotage"`）时，房间的广播监听器调用 `auto_start_sabotage`：随机均分红蓝（写 `players.team`）→ 启动引擎 → 进入 10s 揭晓。若引擎已在运行则幂等跳过。所以现场不需要任何「Assign Teams / Start」操作。
 
 ## 可配置项（不硬编码）
 

@@ -35,7 +35,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores` / `score_events`
 - 运维：CloudFormation 双栈、OIDC 零密钥 CI、CloudFront 同源部署
 
-未完成：Sabotage 游戏界面、题库后端化与题型注册表接线、逐题答案存储与大屏聚合、AWS 剩余项（见第 6 节与 [TODO](./TODO.md)）。
+未完成：题库后端化与题型注册表接线、逐题答案存储与大屏聚合、AWS 剩余项（见第 6 节与 [TODO](./TODO.md)）。
 
 ## 4. 与上一代系统的关系
 
@@ -70,7 +70,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染 + 倒计时（当时的占位屏已由真实游戏替换）；管理员可 pause / resume / finish / 跳节点
 - [ ] AWS 剩余项（Secrets Manager 保存 `SecretKey` / `AdminPassword`、自定义域名 + ACM）见 [aws/](./aws)
 - [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
-- [ ] **Sabotage 仍是占位屏**（`src/games/` 下尚无该游戏）；**后端引擎、投票接口、流程接入与 WS 广播已就绪**，见 [games/sabotage.md](./games/sabotage.md)
+- [x] **Sabotage 已完整实现**：红蓝三轮攻防投票、共享单次攻击卡 + 可复用防守卡、6×6 效果矩阵、自动开赛、团队结算写分，见 [games/sabotage.md](./games/sabotage.md)
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` 三张表，房间是数据（`main` 由迁移 seed），成员记在 `players.room_code`
 - [x] 房间 / 玩家 / 分数的增删改查接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮

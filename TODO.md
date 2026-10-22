@@ -95,8 +95,13 @@
 - [x] pause/resume 联动：主流程暂停时 Sabotage 子阶段时钟同步冻结/恢复（并广播）
 - [x] WS 新增 `sabotage` 消息：连接即推 + 子阶段推进/暂停扇出；前端 `gameStore` 加 `SabotageState`
 - [x] 测试：暂停冻结/恢复、暂停拒绝投票、房间暂停联动（19 个 sabotage 测试）
-- [ ] M4 实现 `arcade_ftw_fe/src/games/sabotage/` + 大屏
-- [ ] M5 团队结算写库（每队员同一 `sabotage_score`）+ E2E + 文档状态翻转
+**M4 前端界面 + M5 结算联调** ✅
+
+- [x] M4 `games/sabotage/SabotageGame.tsx`：投票屏（选卡/已选/倒计时）、揭晓、结果；卡牌元数据由快照 `cards` 下发
+- [x] M4 大屏：情景、隐藏票数、SPENT 墙、resolve/result、子阶段倒计时
+- [x] M5 自动开赛：主流程到 sabotage 节点自动随机分队并启动引擎（admin 零操作）
+- [x] M5 结算写库：引擎 done 时每个队员 `sabotage_score` = 各自团队总分（服务端结算）
+- [x] M5 测试：自动开赛、结算写库（21 个 sabotage 测试）；E2E 浏览器冒烟全绿
 
 ## 3. 题库后端化
 
