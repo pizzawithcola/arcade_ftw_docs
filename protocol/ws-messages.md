@@ -27,8 +27,9 @@ ws(s)://<host>/api/ws
 | 方向 | type | payload | 说明 |
 |---|---|---|---|
 | server → client | `state` | 见下 | 连接建立时立即推一次；此后每次状态变化**扇出给所有连接** |
+| server → client | `sabotage` | 见下 | Sabotage 引擎自己的快照：连接时推一次（若房间在 Sabotage 中），此后每次子阶段推进 / 暂停 / 恢复时扇出 |
 
-**客户端不发消息。** 管理员控制走 HTTP（见 `arcade_ftw_be/app/game.py`）：可鉴权、能在 `/api/docs` 里直接点、失败有真实状态码。状态变化再由服务端广播。所以 WS 是**单向推送通道**。
+**客户端不发消息。** 管理员控制走 HTTP（见 `arcade_ftw_be/app/game.py`）：可鉴权、能在 `/api/docs` 里直接点、失败有真实状态码。状态变化再由服务端广播。所以 WS 是**单向推送通道**。Sabotage 的投票同样走 HTTP（`POST /api/sabotage/{code}/vote`），WS 只负责把结果推回来。
 
 `state` 的 payload：
 
@@ -56,6 +57,39 @@ ws(s)://<host>/api/ws
 - 只有声明了 `questions` + `seconds_each` 的节点才有值，其余节点为 `null`。
 - `idle` / `finished` 时固定给第 1 题、`remaining_ms: 0`，避免前端在无时钟状态下算出越界题号。
 - 大屏靠它展示题面，所有 iPad 的题号因此天然一致；选项仍只留在 iPad 上。
+
+### `sabotage` 的 payload
+
+Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游戏，所以它的快照单独走一条消息，而不是塞进 `state`：
+
+```json
+{
+  "code": "round-3",
+  "phase": "attack",
+  "paused": false,
+  "round": 1,
+  "attacker": "red",
+  "defender": "blue",
+  "remaining_ms": 15200,
+  "budgets": { "red": 100000, "blue": 100000 },
+  "scores": { "red": 0, "blue": 0 },
+  "spent": [],
+  "scenario": { "attacker": "red", "defender": "blue", "attack_title": "...", "attack_prompt": "...", "defence_title": "...", "defence_prompt": "...", "learning": "..." },
+  "voting_team": "red",
+  "options": ["deepfake_video", "cloned_voice", "..."],
+  "tie_candidates": [],
+  "attack_card": null,
+  "defence_card": null,
+  "last_result": null
+}
+```
+
+- `phase`：`setup / team_reveal / attack / defend / tie_break / resolve / team_result / payout / done`
+- `remaining_ms`：当前子阶段的剩余时长；`paused` 时是冻结值（与主引擎同款语义）
+- `options`：当前行动方可选的卡；**不暴露任何人的投票**
+- `last_result`：最近一次 resolve 的结果（含 `outcome` / `attack_delta` / `defence_delta`，payout 后带 `winner`）
+
+前端类型：[`arcade_ftw_fe/src/store/gameStore.ts`](../../arcade_ftw_fe/src/store/gameStore.ts) 的 `SabotageState`。主引擎的 `state` 与 Sabotage 的 `sabotage` **并行广播、互不覆盖**。
 
 ## 待实现
 

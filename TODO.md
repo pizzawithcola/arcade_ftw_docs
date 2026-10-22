@@ -88,7 +88,13 @@
 - [x] 投票：行动方可投、改票覆盖、平票 5s 重投、再平选最便宜、SPENT 全局失效、预算扣减
 - [x] 接口：`POST /api/sabotage/{code}/start`（admin）、`/vote`（玩家）、`GET /state`（公开）
 - [x] 测试：矩阵完整性、三档计分、整局三轮、SPENT、预算、平票、payout、接口（16 个）
-- [ ] M3 拆 flow 节点（2.5 分钟）+ WS 广播 sabotage 子阶段
+
+**M3 流程接入 + WS 广播** ✅
+
+- [x] `flow.py` sabotage 节点 30s → 170s（正常 151s + 平票余量）
+- [x] pause/resume 联动：主流程暂停时 Sabotage 子阶段时钟同步冻结/恢复（并广播）
+- [x] WS 新增 `sabotage` 消息：连接即推 + 子阶段推进/暂停扇出；前端 `gameStore` 加 `SabotageState`
+- [x] 测试：暂停冻结/恢复、暂停拒绝投票、房间暂停联动（19 个 sabotage 测试）
 - [ ] M4 实现 `arcade_ftw_fe/src/games/sabotage/` + 大屏
 - [ ] M5 团队结算写库（每队员同一 `sabotage_score`）+ E2E + 文档状态翻转
 

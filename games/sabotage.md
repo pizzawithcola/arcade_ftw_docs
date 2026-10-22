@@ -3,9 +3,9 @@
 主流程第 6 个节点（`type: game`，`game: sabotage`）。
 设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。目前**仍是占位屏**，本文是落地前的设计拆解。
 
-> 状态：**设计已定稿（M0）+ 团队分配已实现（M1）+ 引擎与投票接口已实现（M2）**。`flow.py` 的 sabotage 节点仍是 30s 占位、未接 WS 广播（M3），前端（M4）与结算写库（M5）尚未实现。
+> 状态：**设计已定稿（M0）+ 团队分配（M1）+ 引擎/投票（M2）+ 流程接入与 WS 广播（M3）均已实现**。前端（M4）与结算写库（M5）尚未实现。
 >
-> 模块进度：M0 ✅ 设计定稿 · M1 ✅ 团队分配 · M2 ✅ 引擎+投票 · M3 ⬜ 流程接入 · M4 ⬜ 前端 · M5 ⬜ 结算联调
+> 模块进度：M0 ✅ 设计定稿 · M1 ✅ 团队分配 · M2 ✅ 引擎+投票 · M3 ✅ 流程接入 · M4 ⬜ 前端 · M5 ⬜ 结算联调
 
 ## 一句话
 
@@ -182,10 +182,13 @@ Sabotage 需要玩家提交投票。两个方案：
 
 ## 时长预留
 
-完整一轮：10s 揭晓 + 6×20s 投票 + 3×结算动画 + 团队结果 + payout，约 **2.5 分钟（150s）**。
+子阶段时长在 `sabotage_config.py` 的 `TIMINGS` 里，正常总时长 ≈ **2.5 分钟**：
 
-- **当前 `flow.py` 里 sabotage 只有 30s**，是占位值，实现时必须重估（拆节点后由各子节点时长相加）。
-- 本节先**只改文档不改成代码**，时长重构随实现一起做。
+`reveal 8s + 3×(attack 20s + defend 20s + resolve 4s) + team_result 6s + payout 5s ≈ 151s`，另加平票重投余量（每次 tie 5s，最多 3 次）。
+
+- `flow.py` 的 sabotage 节点 `duration_sec` 已从 30s 调到 **170s**（含平票余量），Sabotage 打完后主节点到点自动推进到 Ultimate Quiz。
+- **暂停联动**：操作员 pause/resume 主流程时，Sabotage 的子阶段时钟同步冻结/恢复（`game.py` 联动 + 广播）。
+- Sabotage 结束后 `sabotage_score` 的写库在 M5 完成。
 
 ## 与现有系统的衔接
 
