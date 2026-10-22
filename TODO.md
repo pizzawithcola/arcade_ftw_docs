@@ -55,12 +55,38 @@
 
 ## 2. Sabotage 玩法
 
-**目标**：第 6 个节点从占位屏变成真实游戏。
+**目标**：第 6 个节点从占位屏变成真实游戏。完整设计拆解见 [`games/sabotage.md`](./games/sabotage.md)。
 
-- [ ] 明确玩法规则与计分（目前 `sabotage_score` 无写入方）
-- [ ] 实现 `arcade_ftw_fe/src/games/sabotage/`
-- [ ] 节点时长与玩法匹配，并同步 `flow.py`
-- [ ] 补 `games/sabotage.md`
+**核心结论**：
+
+- 玩法：红蓝三轮攻防**投票**，多数票=全队唯一行动；攻击卡共享单次使用，防守卡每轮复用。
+- **计分**：整局结算出**一个团队总分**，队内每个竞技成员**共享同一个数值**写入 `sabotage_score`（不均分；服务端统一写库，玩家不上报）。
+- **效果矩阵**：6×6 已定稿（blocked / partial / failed 三档）；胜利方 payout +100。
+- **时长**：约 **2.5 分钟（150s）**，需重构节点（10s 揭晓 + 6×20s 投票 + 结算），**先改文档不改代码**。
+- **双向通信**：投票走 **HTTP + 玩家令牌**（复用 `/api/me/score` 模式），WS 保持单向只广播结果。
+- **Learning**：本期不做，默认全员 competing。
+- **风险点**：引擎现在「1 节点 = 1 时长」，Sabotage 有 ~12 个子阶段；倾向**拆 flow 节点**而非改核心引擎。
+
+**M0 设计定稿** ✅
+
+- [x] 玩法规则、6×6 效果矩阵、blocked/partial/failed 计分、payout（胜利方 +100）
+- [x] 双向通信评估（HTTP 投票 + WS 广播）
+- [x] 可配置项清单（见 `games/sabotage.md`）
+
+**M1 团队分配** ✅
+
+- [x] `players.team`（red/blue）+ 迁移 `7b3e4d8f1a2c`
+- [x] `POST /api/rooms/{code}/teams/assign`：admin 触发，按 id 交替均分、可重跑、幂等
+- [x] 名单 / `GET /api/auth/me` 带 team；玩家只见自己队，admin/display 见全员
+- [x] join 进新房间清空 team
+- [x] 测试：均分、奇数、重跑确定性、名单裁剪、me 带队、换房清队、鉴权（7 个）
+
+**M2–M5 待办**
+
+- [ ] M2 实现 `app/sabotage.py` 房间级状态机（T4_INIT → … → T5_TRANSITION）+ 投票接口 `POST /api/sabotage/{room}/vote`
+- [ ] M3 拆 flow 节点（2.5 分钟）+ WS 广播 sabotage 子阶段
+- [ ] M4 实现 `arcade_ftw_fe/src/games/sabotage/` + 大屏
+- [ ] M5 团队结算写库（每队员同一 `sabotage_score`）+ E2E + 文档状态翻转
 
 ## 3. 题库后端化
 
