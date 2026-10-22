@@ -81,9 +81,13 @@
 - [x] join 进新房间清空 team
 - [x] 测试：均分、奇数、重跑确定性、名单裁剪、me 带队、换房清队、鉴权（7 个）
 
-**M2–M5 待办**
+**M2 引擎 + 投票接口** ✅
 
-- [ ] M2 实现 `app/sabotage.py` 房间级状态机（T4_INIT → … → T5_TRANSITION）+ 投票接口 `POST /api/sabotage/{room}/vote`
+- [x] `app/sabotage_config.py`：卡牌、6×6 效果矩阵、剧本、计时、预算
+- [x] `app/sabotage.py`：房间级状态机（team_reveal → attack/defend/resolve ×3 → payout → done）+ 单调时钟
+- [x] 投票：行动方可投、改票覆盖、平票 5s 重投、再平选最便宜、SPENT 全局失效、预算扣减
+- [x] 接口：`POST /api/sabotage/{code}/start`（admin）、`/vote`（玩家）、`GET /state`（公开）
+- [x] 测试：矩阵完整性、三档计分、整局三轮、SPENT、预算、平票、payout、接口（16 个）
 - [ ] M3 拆 flow 节点（2.5 分钟）+ WS 广播 sabotage 子阶段
 - [ ] M4 实现 `arcade_ftw_fe/src/games/sabotage/` + 大屏
 - [ ] M5 团队结算写库（每队员同一 `sabotage_score`）+ E2E + 文档状态翻转
