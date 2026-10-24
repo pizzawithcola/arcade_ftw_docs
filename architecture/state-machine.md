@@ -16,7 +16,7 @@
 | `start` | `idle/finished → playing`，**无条件回到第 0 个节点** |
 | `pause` | `playing → paused`，**冻结剩余时间** |
 | `resume` | `paused → playing`，从冻结处继续 |
-| `finish` | `any → finished` |
+| `finish` | `any → finished`，**并清空房间成员**（`room_code` / `team` 置空） |
 | `go/{index}` | 跳到任意节点；也是从 `finished` / `idle` 复活的方式 |
 | `reset` | `any → idle`，回到「干净待演」态（排练完交台用）|
 
