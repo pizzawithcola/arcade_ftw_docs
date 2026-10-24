@@ -32,7 +32,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 - 前端：React 19 + Vite + TS + zustand；四条 UI 路线（登录 / 玩家 / 大屏 / 管理台）；三个真实玩法（Hallucination、Quiz、Data Shadow）；等待室、跟随当前轮、题目索引与大屏题面
 - 后端：FastAPI 入口（`/health`、`/health/db`、`/api/*`）、按房间隔离的状态机（`app/engine.py`）、流程配置（`app/flow.py`）、WS 推送（`app/ws.py`）、房间 / 玩家 / 分数接口、HMAC 令牌鉴权
-- 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores` / `score_events`
+- 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores` / `score_events` / `room_participants`
 - 运维：CloudFormation 双栈、OIDC 零密钥 CI、CloudFront 同源部署
 
 未完成：题库后端化与题型注册表接线、逐题答案存储与大屏聚合、AWS 剩余项（见第 6 节与 [TODO](./TODO.md)）。
@@ -72,13 +72,13 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
 - [x] **Sabotage 已完整实现**：红蓝三轮攻防投票、共享单次攻击卡 + 可复用防守卡、6×6 效果矩阵、自动开赛、团队结算写分，见 [games/sabotage.md](./games/sabotage.md)
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
-- [x] 数据库：`rooms` / `players` / `scores` 三张表，房间是数据（`main` 由迁移 seed），成员记在 `players.room_code`
-- [x] 房间 / 玩家 / 分数的增删改查接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
-- [x] **room = 一轮游戏**：admin 新建 `round-N`，大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**
+- [x] 数据库：`rooms` / `players` / `scores` / `score_events` / `room_participants`；房间是一次性数据（code + 创建时间即全部身份），当前房间绑定记在 `players.room_code`，参与历史记在 `room_participants`
+- [x] 房间 / 玩家 / 分数的接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
+- [x] **room = 一轮游戏，一次性**：admin 新建 `round-N`，`finish` 关闭房间（写 `closed_at`、清空成员绑定），下一轮必须新开；大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**（最新未关闭房间）
 - [x] 玩家不扫码：登录后在 `/play` 跟随当前轮；本轮 `finished` → 收尾屏 8 秒后回登录页
 - [x] 大屏展示题目（索引由引擎按 `questions`/`seconds_each` 算出），选项只在玩家屏
 - [x] 大屏空闲态 = **等待室**：Waiting Room + 已加入玩家名墙 + 人数（无二维码/网址/房间号，`qrcode.react` 已移除）
-- [x] Admin Data 分区可对房间/玩家**新增、编辑、删除**（分数仍走接口）
+- [x] Admin Console 极简：**没有房间选择器**（当前轮 = 唯一未关闭房间），`new room` 一键开轮；Admin Data 的 Rooms 表**只读 + 删除**（列：Room / Created / Players / Status），Players 表可**新增、编辑、删除**（分数仍走接口）
 - [x] `scores` 由游戏写入：玩家用自己令牌 `POST /api/me/score`，按题幂等累加到四个分区（`ScoreEvent` 表去重）
 - [ ] 逐题**答案**未落库，所以大屏做不了选项分布；答案存下来后才能做全场聚合
 - [ ] **强制规则不在本 repo**：位于 workspace 根的 `AI Arcade/.github/copilot-instructions.md`（刻意不入版本库）。若日后需要 GitHub 云端 Copilot 也遵守，再考虑在各 repo 放精简版

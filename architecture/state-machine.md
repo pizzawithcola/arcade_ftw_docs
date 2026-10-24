@@ -13,10 +13,10 @@
 
 | 动作 | 效果 |
 |---|---|
-| `start` | `waiting/finished → playing`，**无条件回到第 0 个节点** |
+| `start` | `waiting/finished → playing`，**无条件回到第 0 个节点**；**房间已关闭（`closed_at`）时直接 409** |
 | `pause` | `playing → paused`，**冻结剩余时间** |
 | `resume` | `paused → playing`，从冻结处继续 |
-| `finish` | `any → finished`，**并清空房间成员**（`room_code` / `team` 置空） |
+| `finish` | `any → finished`，**清空房间成员**（`room_code` / `team` 置空）并**关闭房间**（写 `closed_at`） |
 | `go/{index}` | 跳到任意节点；也是从 `finished` / `waiting` 复活的方式 |
 | `reset` | `any → waiting`，回到「干净待演」态（排练完交台用）|
 
@@ -39,6 +39,17 @@
 | **`finished`** | → `playing` idx=0 | 无操作 | 无操作 | 无操作（幂等）| → `playing` idx=i | → `waiting` |
 
 时间驱动（非人为）：`playing` 倒计时归零 → 自动进下一节点并重新装填；已是最后一个节点 → `finished`。
+
+### 房间关闭（一次性的生命周期）
+
+引擎状态机只管节点流转；**房间**还有一层生命周期，两者是分离的：
+
+1. `POST /api/rooms` 建新房间 → `waiting`（`closed_at IS NULL`）。
+2. `finish` → 引擎到 `finished`，**同时**把 `rooms.closed_at` 写为当前时间、把该房间成员的 `room_code` / `team` 清空。房间从此是**历史**。
+3. 关闭后对同一房间再按 `start` → **409 `room is closed; create a new room`**，而不是状态机里的「→ playing」——状态机那张表只描述引擎，API 层会先拦下关闭的房间。
+4. 下一轮 = `new room`（新的 `round-N`），与旧房间完全无关；参与历史留在 `room_participants`。
+
+所以「上一场结束后重开同一房间」在 API 上不可行，这正是刻意的：**一场一个新房间**，避免残留上一场的玩家。
 
 **两个不变量**：
 

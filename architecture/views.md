@@ -30,23 +30,25 @@
 /api/rooms/{code}/players         # 房间名单（玩家只见昵称，admin/display 见总分）
 /api/players/{id}/score           # 分数读写（管理员）
 /api/me/score                     # 玩家上报自己某一题/整节点的得分
-/api/rooms                        # 房间 CRUD（POST 建、PATCH 改、DELETE 删）
+/api/rooms                        # 房间（POST 建、GET 查、DELETE 删；房间是一次性的，不可改）
 /api/ws?room={code}
 ```
 
-默认房间 `main`。理由：并行活动是小概率事件，但真发生时才改，就要动每一处 fetch、WS 协议和前端路由，而那天通常是活动当天。
+房间是一次性的：admin 每轮新建一个（自动 `round-N`），结束后 `finish` 把它关闭，下一轮再建新的。没有「默认房间」。
 
 引擎按房间隔离（`app/rooms.py` 的 `RoomRegistry`），每个房间有自己的时钟、进度和广播目标。**未知房间返回 404**（不会静默新建，避免打错 URL 就出现一场空节目）。
 
 ### 房间是数据
 
-**room = 一轮游戏**。每轮由 admin 新建一个房间（`round-1`、`round-2`…，也可以自己给 code）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。所以房间列表是**历史**，最新创建的那个是「当前轮」。
+**room = 一轮游戏，一次性**。每轮由 admin 新建一个房间（`round-1`、`round-2`…）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。房间列表是**历史**：`closed_at` 为空的房间只有一个——最新创建的那一个，即「当前轮」；`finish` 之后它关闭，下一轮是全新的房间。
 
-房间有行：`rooms(code PK, event, label, created_at)`，`main` 由迁移 seed（第一轮之前的占位）。启动时 `RoomRegistry.load()` 读这张表建引擎；**读库失败只记警告并退回默认房间**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉。
+房间有行：`rooms(code PK, created_at, closed_at)`。不再有 `label` / `event` 这类自由文本——房间的身份证就是 **code + 创建时间**。谁参加了这一轮记在独立的 `room_participants(room_code, player_id, joined_at)` 表里（复合主键、级联删除），**它不随房间关闭而清空**，所以历史房间永远能回答「这轮有谁」。
 
-成员归属记在 `players.room_code`（可空，`ON DELETE SET NULL`）。登录就建 `players` 行，**进房间才写 `room_code`**：`POST /api/rooms/{code}/join`，玩家端每次进页面都调，所以刷新 / 换 Wi-Fi 后仍然在原房间。删房间只是把成员置空，不会删人。
+启动时 `RoomRegistry.load()` 读这张表为每个房间建引擎；**读库失败只记警告并退回内存 fallback `main`**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉（该 fallback 只存在于进程内，不写库）。
 
-> `GET /api/rooms` 的两个数字不要混：`players` 是**库里加入该房间的人数**，`clients` 是**当前 WS 连接数**。iPad 熄屏、切后台都会让 `clients` 掉下去，而 `players` 不变。
+成员归属另有一份「当前房间」绑定在 `players.room_code`（可空，`ON DELETE SET NULL`）：登录就建 `players` 行，**进房间才写 `room_code`**（`POST /api/rooms/{code}/join`，玩家端每次进页面都调）。`finish` 时把该房间所有成员的 `room_code` 和 `team` 一并清空——**关闭的房间不再绑定任何玩家**，所以下一场绝不可能「还看到上一场的玩家」。删房间则把成员置空，不会删人。
+
+> `GET /api/rooms` 的两个数字不要混：`players` 是**加入该房间的人数**（来自 `room_participants`，房间关闭后仍在），`clients` 是**当前 WS 连接数**。iPad 熄屏、切后台都会让 `clients` 掉下去，而 `players` 不变。
 
 > ⚠️ 引擎仍是**进程内内存态**。两个房间在一个进程里可以并行，但**一次部署会把所有房间清零**。
 
@@ -103,8 +105,7 @@
 | 操作 | 接口 | 关键约束 |
 |---|---|---|
 | 房间 增 | `POST /api/rooms` | code 可省略（自动 `round-N`），给了就必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
-| 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（库里人数）与 `clients`（活的连接） |
-| 房间 改 | `PATCH /api/rooms/{code}` | 只能改 `event` / `label`；**code 不可改**（已在 URL、`/r/{code}` 排障链接和玩家归属里） |
+| 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（该轮参与人数）与 `clients`（活的连接），并带 `created_at` / `closed_at` |
 | 房间 删 | `DELETE /api/rooms/{code}` | **playing / paused 时拒绝（409）**——删引擎会把房间里每台 iPad 晾在半局 |
 | 玩家 增 | `POST /api/rooms/{code}/players` | 操作员替玩家建成员（设备掉了人还在名单上），重名照常编号 |
 | 玩家 查 | `GET /api/players`、`GET /api/players/{id}` | 支持 `?room=` / `?event=` 过滤，带 `total_score` |
@@ -117,7 +118,7 @@
 
 ### 当前轮（current）与大屏
 
-`GET /api/rooms` 返回 `{current, rooms}`：`current` 是**最近创建**的房间（按 `created_at`），`rooms` 按新到旧排序。
+`GET /api/rooms` 返回 `{current, rooms}`：`current` 是**最新一个未关闭**（`closed_at IS NULL`）的房间，`rooms` 按新到旧排序（历史房间全在里面，带 `closed_at`）。
 
 - **大屏展示题目**：节点的 `questions` / `seconds_each` 让引擎算出**当前是第几题**（`snapshot.question`），大屏用这个索引渲染题面；选项只留在 iPad 上——六米外看不清四个选项。
 - **大屏 `/display`（不带 code）自动跟随 `current`**：admin 点 `new room` 后大屏自己切到新房间，**URL 不用改**（每 3 秒轮询一次 `current`）。
@@ -135,24 +136,22 @@
 
 | 分区 | 内容 | 数据来源 |
 |---|---|---|
-| **Arcade Console** | 单个控制面板：房间下拉 + **`new room`（开新一轮）** + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
-| **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格，并带 `+ new room` / `+ new player` 与每行的 `view / edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
+| **Arcade Console** | 单个控制面板：显示当前房间 + **`new room`（开新一轮）** + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
+| **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
 | **Game Setting** | 占位，留给房间默认值 / 节点时长 | — |
 
 Arcade Data 的两张表：
 
 | 表 | 列 |
 |---|---|
-| Rooms | Room、Label、Event、Phase、Node、Joined、Online、`view`（选中该房间并跳到 Players）；**最新一轮在最上面** |
+| Rooms | Room（当前轮打 `current` 标）、Created、Players、Status（open / closed）、`delete`；**最新一轮在最上面**，关闭的房间是历史 |
 | Players | Player、Event、Hallu、Data、Sabotage、Ultimate、Total（按 Total 倒序，无分数行读作 0） |
-
-两张表**共用同一套表头、说明行和数字对齐**，切换时只有数据在变，视觉不跳。Rooms 表最后一列是动作列（表头留空只是 `aria-label`），不是数据列。
 
 几个刻意的取舍：
 
-- **没有独立的「房间列表」窗口**。以前左栏那排房间卡片占掉了半屏，而实际只有 `main` 一个房间。房间现在是 **Data 里的一张表**，需要选房间时用 Console 的下拉或表里的 `view`。
-- **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Joined / Online / 四个分项。
-- **增删改在面板里做**：房间和玩家都能就地新增/编辑/删除（内联表单，不用弹窗），删除前 `confirm` 一次。分数仍然只能通过接口改 —— 改分比改名字危险得多。
+- **没有房间选择器**。房间是一次性的，**当前轮 = 唯一一个未关闭的房间**，操作员要操作的就是它，无需选择；上一场结束了就 `finish`，再 `new room` 开下一场。历史房间只作记录，不参与控制。
+- **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Created / 参与人数 / 四个分项。
+- **房间只读 + 删除**：房间没有可编辑字段（code + 创建时间就是全部身份），所以 Rooms 表只有 `delete`；玩家仍可就地新增/编辑/删除（内联表单，不用弹窗），删除前 `confirm` 一次。分数仍然只能通过接口改 —— 改分比改名字危险得多。
 - **令牌失效会退回登录**：轮询拿到 401 时面板/大屏回到登录页，而不是静默停止更新。
 - **玩家表按分区打开才轮询**：名单没人看的时候不该每秒查一次库。
 - **窄屏（< 52rem）时侧边栏变成一行 tab**，宽屏是 12rem 侧栏 + 内容区；表格在窄屏内横向滚动，不撑破页面。
@@ -195,6 +194,5 @@ Arcade Data 的两张表：
 ## 已知限制
 
 - **分数已自动落库**（`POST /api/me/score`，按题幂等）；但**逐题答案没有存**，所以做不了「全场选 A/B/C/D 分布」这类聚合。大屏显示题面靠引擎的题号，不靠答案。
-- **Sabotage 仍是占位屏**，`sabotage_score` 目前没有写入方。
 - **Admin 面板不能改分数**：房间/玩家的增删改已进面板，分数仍走 `/api/docs`。
 - **分数由客户端计算**：题目还在前端，后端无法独立核算。
