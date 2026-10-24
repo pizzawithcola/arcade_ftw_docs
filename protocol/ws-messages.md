@@ -35,7 +35,7 @@ ws(s)://<host>/api/ws
 
 ```json
 {
-  "phase": "idle | playing | paused | finished",
+  "phase": "waiting | playing | paused | finished",
   "index": 2,
   "node_count": 8,
   "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" },
@@ -55,7 +55,7 @@ ws(s)://<host>/api/ws
 `question` 是**引擎按节点时钟算出的当前题号**（`app/engine.py` 的 `_question()`），不是设备上报的：
 
 - 只有声明了 `questions` + `seconds_each` 的节点才有值，其余节点为 `null`。
-- `idle` / `finished` 时固定给第 1 题、`remaining_ms: 0`，避免前端在无时钟状态下算出越界题号。
+- `waiting` / `finished` 时固定给第 1 题、`remaining_ms: 0`，避免前端在无时钟状态下算出越界题号。
 - 大屏靠它展示题面，所有 iPad 的题号因此天然一致；选项仍只留在 iPad 上。
 
 ### `sabotage` 的 payload

@@ -172,7 +172,7 @@ Arcade Data 的两张表：
 
 ## Display View 的内容
 
-- **idle = 等待室**：大字 **Waiting Room**、`N players joined`、以及**已加入玩家的名字墙**（2 秒轮询名单）。
+- **waiting = 等待室**：大字 **Waiting Room**、`N players joined`、以及**已加入玩家的名字墙**（2 秒轮询名单）。
   设备是我们发的 iPad，所以**没有二维码、没有网址、没有房间号**——大厅屏幕上不该出现需要人操作的东西。
   名字用胶囊格排布（`auto-fill` 自动列数），人多时区域内滚动，短名单自动垂直居中。
 - **playing / paused**：节点序号与标题、**大倒计时**、以及该轮可以静态呈现的内容

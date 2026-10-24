@@ -31,7 +31,7 @@ https://d39s9y5ma27s5.cloudfront.net/health # 健康检查
 
 | 想做的事 | 按哪个 | ⚠️ 注意 |
 |---|---|---|
-| 开演 | `start` | 只用于 idle / finished（从头开演）；**暂停中跳节点后不要按** |
+| 开演 | `start` | 只用于 waiting / finished（从头开演）；**暂停中跳节点后不要按** |
 | 暂停 | `pause` | 冻结剩余时间，暂停多久都不影响 |
 | 继续 | `resume` | |
 | **暂停后跳到某节点再继续** | **`resume`** | ⚠️ **别按 `start`**，它会把整个节目弹回第 1 节点；控制台不会禁用该按钮 |
@@ -95,7 +95,7 @@ curl -s -o /dev/null -w '新密码 %{http_code}\n' -X POST "$D/api/auth/admin" \
   -H 'Content-Type: application/json' -d '{"username":"admin","password":"新密码"}'
 ```
 
-> ⚠️ **轮换会替换容器**，内存里的引擎状态归零（回 `idle`，进度全丢）。**活动进行中绝对不要轮换。**
+> ⚠️ **轮换会替换容器**，内存里的引擎状态归零（回 `waiting`，进度全丢）。**活动进行中绝对不要轮换。**
 > ⚠️ 轮换 `SecretKey` 会让**所有已签发的令牌立即失效**（在场玩家需重新登录，管理员需重新登录）。
 > ⚠️ 栈更新会把服务指回模板里的 `:latest`（见 [../aws/README.md](../aws/README.md) 第 22 条）：内容相同，但不再是 CI 固定的版本号。想恢复精确版本，轮换后再跑一次 CI。
 > ⚠️ `update-stack` **必须带 `--capabilities CAPABILITY_NAMED_IAM`**，否则报 `InsufficientCapabilitiesException`。

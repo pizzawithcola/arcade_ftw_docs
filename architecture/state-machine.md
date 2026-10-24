@@ -13,17 +13,17 @@
 
 | 动作 | 效果 |
 |---|---|
-| `start` | `idle/finished → playing`，**无条件回到第 0 个节点** |
+| `start` | `waiting/finished → playing`，**无条件回到第 0 个节点** |
 | `pause` | `playing → paused`，**冻结剩余时间** |
 | `resume` | `paused → playing`，从冻结处继续 |
 | `finish` | `any → finished`，**并清空房间成员**（`room_code` / `team` 置空） |
-| `go/{index}` | 跳到任意节点；也是从 `finished` / `idle` 复活的方式 |
-| `reset` | `any → idle`，回到「干净待演」态（排练完交台用）|
+| `go/{index}` | 跳到任意节点；也是从 `finished` / `waiting` 复活的方式 |
+| `reset` | `any → waiting`，回到「干净待演」态（排练完交台用）|
 
 ## 阶段
 
 ```text
-  idle ──start──▶ playing ⇄ paused
+  waiting ──start──▶ playing ⇄ paused
     ▲                │         │
     │                └───┬─────┘
   reset ◀───────────────┴──▶ finished
@@ -33,17 +33,17 @@
 
 | 当前 ↓ / 动作 → | `start` | `pause` | `resume` | `finish` | `go/{i}` | `reset` |
 |---|---|---|---|---|---|---|
-| **`idle`** | → `playing` idx=0 | 无操作 | 无操作 | → `finished` | → `playing` idx=i | 无操作 |
-| **`playing`** | **无操作**（不重置节点）| → `paused` 冻结剩余 | 无操作 | → `finished` | `playing` idx=i，**满时长** | → `idle` |
-| **`paused`** | → `playing` **idx 归 0** ⚠️ | 无操作 | → `playing` 精确接续 | → `finished` | `paused` idx=i，**满时长** | → `idle` |
-| **`finished`** | → `playing` idx=0 | 无操作 | 无操作 | 无操作（幂等）| → `playing` idx=i | → `idle` |
+| **`waiting`** | → `playing` idx=0 | 无操作 | 无操作 | → `finished` | → `playing` idx=i | 无操作 |
+| **`playing`** | **无操作**（不重置节点）| → `paused` 冻结剩余 | 无操作 | → `finished` | `playing` idx=i，**满时长** | → `waiting` |
+| **`paused`** | → `playing` **idx 归 0** ⚠️ | 无操作 | → `playing` 精确接续 | → `finished` | `paused` idx=i，**满时长** | → `waiting` |
+| **`finished`** | → `playing` idx=0 | 无操作 | 无操作 | 无操作（幂等）| → `playing` idx=i | → `waiting` |
 
 时间驱动（非人为）：`playing` 倒计时归零 → 自动进下一节点并重新装填；已是最后一个节点 → `finished`。
 
 **两个不变量**：
 
 1. runner 任务在 `finished` 时主动退出；引擎抛未捕获异常时也会落到 `finished`（不会静默卡死）。`reset` 会**取消**该任务——否则一个活着的 runner 会永远停在 wake 事件上等不到唤醒，变成泄漏的协程。
-2. `idle` 在实现 `reset` 之前**不可达**（只在模块加载时赋值一次），所以排练到底后没有任何办法回到「干净待演」态。
+2. `waiting` 在实现 `reset` 之前**不可达**（只在模块加载时赋值一次），所以排练到底后没有任何办法回到「干净待演」态。
 
 ### ⚠️ 操作员必须知道的：`go/{i}` 之后按 `resume`，不要按 `start`
 
@@ -54,13 +54,13 @@
 暂停中跳到第 4 节点 → 按 resume → 正确播放第 4 节点 ✅
 ```
 
-⚠️ **控制台不会阻止这个陷阱**：`start / pause / resume / finish / reset` 在当前实现里只在请求进行中禁用，并不按 phase 灰掉。所以「暂停 → 跳节点 → 按 start」仍会弹回第 1 节点。现场操作的硬规则是：**跳节点之后按 `resume`，永远不要按 `start`**。`start` 只用于「从头开演」（idle / finished）。
+⚠️ **控制台不会阻止这个陷阱**：`start / pause / resume / finish / reset` 在当前实现里只在请求进行中禁用，并不按 phase 灰掉。所以「暂停 → 跳节点 → 按 start」仍会弹回第 1 节点。现场操作的硬规则是：**跳节点之后按 `resume`，永远不要按 `start`**。`start` 只用于「从头开演」（waiting / finished）。
 
 ### `reset` 用在哪
 
 排练循环：`reset` → `start` 从头再来，**一个键**。以前的替代路径是 `finish` → `start`，且只能用在演完之后。
 
-`idle` 在现场的表现是那句「Waiting for the show to start…」——**不是**停在第 1 节点的 0:00。前端在 `phase === 'idle'` 时就走等待屏，否则 reset 出来的画面会像一个卡住的节目。
+`waiting` 在现场的表现是那句「Waiting for the show to start…」——**不是**停在第 1 节点的 0:00。前端在 `phase === 'waiting'` 时就走等待屏，否则 reset 出来的画面会像一个卡住的节目。
 
 ## 三条时钟设计（都踩过坑）
 
@@ -82,7 +82,7 @@
 }
 ```
 
-`question` 由 `Engine._question()` 从节点时钟推导，仅对声明了 `questions` / `seconds_each` 的节点有值；`idle` / `finished` 时固定为第 1 题、`remaining_ms: 0`。详见 [WS 协议](../protocol/ws-messages.md)。
+`question` 由 `Engine._question()` 从节点时钟推导，仅对声明了 `questions` / `seconds_each` 的节点有值；`waiting` / `finished` 时固定为第 1 题、`remaining_ms: 0`。详见 [WS 协议](../protocol/ws-messages.md)。
 
 ## 广播
 
