@@ -72,6 +72,8 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
 - [x] **Sabotage 已完整实现**：红蓝三轮攻防投票、共享单次攻击卡 + 可复用防守卡、6×6 效果矩阵、自动开赛、团队结算写分，见 [games/sabotage.md](./games/sabotage.md)
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
+- [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
+- [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` / `score_events` / `room_participants`；房间是一次性数据（code + 创建时间即全部身份），当前房间绑定记在 `players.room_code`，参与历史记在 `room_participants`
 - [x] 房间 / 玩家 / 分数的接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮

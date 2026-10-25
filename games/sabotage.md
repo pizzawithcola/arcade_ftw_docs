@@ -1,11 +1,11 @@
 # Sabotage（AI Cyber Sabotage）
 
 主流程第 6 个节点（`type: game`，`game: sabotage`）。
-设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。目前**仍是占位屏**，本文是落地前的设计拆解。
+设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。
 
 > 状态：**已完整实现（M0–M5）**——设计、团队分配、引擎/投票、流程接入、前端界面与结算写库全部就绪。
 >
-> 模块进度：M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4 ✅ 前端 · M5 ✅ 结算联调
+> 模块进度：M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4 ✅ · M5 ✅
 
 ## 一句话
 
@@ -56,7 +56,7 @@
 ## 流程
 
 ```
-分队揭晓 10s
+分队揭晓 8s
   → R1 红攻（钓鱼邮件）× 蓝守 → 结算
   → R2 蓝攻（CEO 冒充）× 红守 → 结算
   → R3 红攻（AI 助手操纵）× 蓝守 → 结算
@@ -69,7 +69,7 @@
 
 1. **ATTACK**：进攻方在未 `SPENT` 且买得起的攻击卡里选（R1 6 张 → R2 5 张 → R3 4 张）
 2. **DEFEND**：防守方 6 张防守卡全可选，按预算禁用
-3. **RESOLVE**：公布「攻击 vs 防守」配对，判定 `SABOTAGE SUCCESSFUL / ATTACK BLOCKED`，加减分与预算
+3. **RESOLVE**：公布「攻击 vs 防守」配对，并按身份结算——**玩家平板显示自己阵营的结果**（攻成/攻败、守成/守破），**大屏显示本轮赢家**（`RED/BLUE WINS THE ROUND`），加减分与预算照旧
 
 三轮剧本：钓鱼邮件 → CEO 冒充 → AI 助手操纵；正常打完**正好用掉 3 张攻击卡，剩 3 张未用**。
 
@@ -145,14 +145,9 @@ Sabotage 需要玩家提交投票。两个方案：
 
 ### 真正的工作量在「节点内子阶段」
 
-比双向通信更难的是：**现在引擎 1 节点 = 1 个时长**，而 Sabotage 一个节点内部要跑 10s 揭晓 + 6×20s 投票 + 3 次结算 + 团队结果 ≈ 2.5 分钟、约 12 个子阶段。
+比双向通信更难的是：主引擎「1 节点 = 1 时长」，而 Sabotage 一个节点内部要跑 reveal 8s + 6×20s 投票 + 3 次结算 + 团队结果 ≈ 2.5 分钟、约 12 个子阶段。
 
-两条路：
-
-- **拆节点**：把 sabotage 拆成多个 `flow.py` 节点（`sabotage_r1_attack` / `sabotage_r1_defend` / …），复用现有引擎时钟。改动小、风险低，但 `flow.py` 会变长，且「团队态」要挂在房间级（跨节点存续）。
-- **引擎支持子阶段**：给 `Engine` 加一个 `substage` 概念。架构更干净，但动核心引擎，回归风险高。
-
-**倾向先拆节点**：与「房间级 SabotageEngine 持有团队态」配合，flow 节点只负责计时，状态机逻辑放 SabotageEngine。
+**最终方案**：不动主引擎、也不拆 flow 节点——房间级 `SabotageEngine` 持有团队态并跑**自己的单调时钟**，主 flow 的 sabotage 节点只占 170s 的槽位等它打完。比「拆节点 / 给主引擎加 substage」更省回归风险。
 
 ### 问题清单
 
@@ -178,9 +173,11 @@ Sabotage 需要玩家提交投票。两个方案：
 
 **不需要新建**：WS 通道、鉴权依赖、分数表结构（`sabotage_score` 已存在）、房间/玩家 CRUD。
 
-### 自动开赛（admin 零操作）
+### 自动开赛与重开（admin 零操作）
 
-主流程推进到 Sabotage 节点（`flow.py` 里 `game: "sabotage"`）时，房间的广播监听器调用 `auto_start_sabotage`：随机均分红蓝（写 `players.team`）→ 启动引擎 → 进入 10s 揭晓。若引擎已在运行则幂等跳过。所以现场不需要任何「Assign Teams / Start」操作。
+主流程推进到 Sabotage 节点（`flow.py` 里 `game: "sabotage"`）时，房间的广播监听器调用 `auto_start_sabotage`：随机均分红蓝（写 `players.team`）→ 启动引擎 → 进入 8s 揭晓。
+
+**每次 `go/{index}` 跳转或 `reset` 都会先丢弃旧的 sabotage 引擎**（连 runner 一起取消），所以跳到节点 5 永远是全新一局：按**当前房间玩家**重新随机分队、从 team_reveal 重跑。排练时反复快进/回退都能重新测试，不会复用上一局的分队或进度。现场不需要任何「Assign Teams / Start」操作。
 
 ## 可配置项（不硬编码）
 
@@ -191,7 +188,7 @@ Sabotage 需要玩家提交投票。两个方案：
 | 剧本 | 三轮 attack/defend 文案 + learning 提示 | 钓鱼邮件 / CEO 冒充 / AI 助手操纵 |
 | 攻击卡 | 6 张的 name / description / cost / success / fail | 见上表 |
 | 防守卡 | 6 张同上 | 见上表 |
-| 计时 | team reveal、每段投票、tie 重投 | 10s / 20s / 5s |
+| 计时 | team reveal、每段投票、tie 重投 | 8s / 20s / 5s |
 | 预算 | 每队初始 budget | $100k |
 | **效果矩阵** | attack × defence 谁克谁 | **已定稿**：见上「效果矩阵」表 |
 | 结算 | payout 规则、success/fail 的分值 | 胜利方 +100；blocked/partial/failed 见计分 |
