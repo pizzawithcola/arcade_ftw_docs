@@ -160,7 +160,7 @@ Arcade Data 的两张表：
 
 几个刻意的取舍：
 
-- **控制台内嵌一块「小电视」**。Console 右上角是一个 `16:9` 的 `/display/{code}` iframe，高约窗口 40%，宽度等比缩放；窄屏（< 64rem）时移到控制按钮下方、宽度撑满。用 iframe 而不是复用组件，是因为大屏有自己的 WS 连接和 zustand store，同页复用会两个屏幕抢同一份状态。iframe 设了 `pointer-events: none`——它是画面，不能抢控制台的点击。代价是多一个 WS 连接，以及**它比控制台快最多 2 秒**（大屏走 WS 即时，控制台 `GET /api/rooms` 2 秒轮询），极短节点上可能看到两处差一个节点。
+- **控制台内嵌一块「小电视」**。Console 右上角是一个 `16:9` 的 `/display/{code}` iframe，高约窗口 40%，宽度等比缩放；窄屏（< 64rem）时移到控制按钮下方、宽度撑满。**iframe 按大屏真实尺寸 `1920×1080` 布局，再用 `transform: scale(containerWidth / 1920)` 整体缩小**——所以看到的是「大屏画面被按比例压小」，而不是「网页被塞进小视口导致字特别大、溢出」。看不清字不重要，知道屏幕在显示什么才重要。用 iframe 而不是复用组件，是因为大屏有自己的 WS 连接和 zustand store，同页复用会两个屏幕抢同一份状态。iframe 设了 `pointer-events: none`——它是画面，不能抢控制台的点击。代价是多一个 WS 连接，以及**它比控制台快最多 2 秒**（大屏走 WS 即时，控制台 `GET /api/rooms` 2 秒轮询），极短节点上可能看到两处差一个节点。
 - **跳节点按 section 分组，不显示 1–13 的序号**。每个盒子是「这轮游戏」，里面是它的内容：`Hallucination → challenge / quiz / ranking`、`Data → challenge / quiz / ranking`、`Sabotage → challenge / ranking`、`Ultimate → quiz / ranking`，外加 `Welcome`、`Activity → ranking`（总榜占位）、`Wrap up`。操作员想的是「跳到 Sabotage 的挑战」，不是「跳到第 8 个节点」。分组由快照里的 `flow` 现场推导（`section` 或 `score` + `type`），**前端不硬编码流程**，改 `flow.py` 后按钮自动跟着变。
 - **没有房间选择器**。房间是一次性的，**当前轮 = 唯一一个未关闭的房间**，操作员要操作的就是它，无需选择；上一场结束了就 `finish`，再 `new room` 开下一场。历史房间只作记录，不参与控制。
 - **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Created / 参与人数 / 四个分项。
