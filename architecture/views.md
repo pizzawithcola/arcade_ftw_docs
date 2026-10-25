@@ -147,7 +147,7 @@
 
 | 分区 | 内容 | 数据来源 |
 |---|---|---|
-| **Arcade Console** | 单个控制面板：显示当前房间 + **`new room`（开新一轮）** + `start/pause/resume/finish/reset` + 跳节点 | `GET /api/rooms`（2s 轮询） |
+| **Arcade Console** | 单个控制面板：显示当前房间 + **`new room`（开新一轮）** + `start/pause/resume/finish/reset` + **按 section 分组的跳节点按钮** | `GET /api/rooms`（2s 轮询，快照带 `flow`） |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
 | **Game Setting** | 占位，留给房间默认值 / 节点时长 | — |
 
@@ -160,6 +160,7 @@ Arcade Data 的两张表：
 
 几个刻意的取舍：
 
+- **跳节点按 section 分组，不显示 1–13 的序号**。每个盒子是「这轮游戏」，里面是它的内容：`Hallucination → challenge / quiz / ranking`、`Data → challenge / quiz / ranking`、`Sabotage → challenge / ranking`、`Ultimate → quiz / ranking`，外加 `Welcome`、`Activity → ranking`（总榜占位）、`Wrap up`。操作员想的是「跳到 Sabotage 的挑战」，不是「跳到第 8 个节点」。分组由快照里的 `flow` 现场推导（`section` 或 `score` + `type`），**前端不硬编码流程**，改 `flow.py` 后按钮自动跟着变。
 - **没有房间选择器**。房间是一次性的，**当前轮 = 唯一一个未关闭的房间**，操作员要操作的就是它，无需选择；上一场结束了就 `finish`，再 `new room` 开下一场。历史房间只作记录，不参与控制。
 - **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Created / 参与人数 / 四个分项。
 - **房间只读 + 删除**：房间没有可编辑字段（code + 创建时间就是全部身份），所以 Rooms 表只有 `delete`；玩家仍可就地新增/编辑/删除（内联表单，不用弹窗），删除前 `confirm` 一次。分数仍然只能通过接口改 —— 改分比改名字危险得多。

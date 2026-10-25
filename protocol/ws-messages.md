@@ -39,6 +39,7 @@ ws(s)://<host>/api/ws
   "index": 2,
   "node_count": 13,
   "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" },
+  "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 10 }, "…整条 rundown…" ],
   "remaining_ms": 16780,
   "question": {
     "index": 0,
@@ -49,6 +50,8 @@ ws(s)://<host>/api/ws
   "server_time_ms": 1791733393351
 }
 ```
+
+`flow` 是**整条流程**（同 `flow.py` 的节点列表），让管理台能按 section 给每个跳转按钮打标签，而不必在前端复制一份流程。客户端可以忽略它。
 
 > 前端**不要用 `server_time_ms` 去算截止时刻**——用 `remaining_ms` 自己在本地换算。给的是时长而不是时刻，所以机器时钟有偏差只会整体平移，不会改变节点长度。
 
