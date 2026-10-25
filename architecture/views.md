@@ -12,7 +12,7 @@
 | `/display` | Display View：大屏展示，自动跟随当前轮 | admin（含只读 display 令牌）|
 | `/display/:code` | Display View 的固定版：钉在某个房间（排障 / 复盘）| admin（含只读 display 令牌）|
 | `/admin` | Admin Panel：侧边栏三块（Console / Data / Setting）| admin（**必须 full scope**）|
-| `/leaderboard` | 公开总榜：前 10 名总分，自动刷新，竖屏单列 / 横屏两列 | 所有人（无鉴权）|
+| `/leaderboard` | 公开总榜：前 10 名总分，自动刷新；默认单列，纵向放不下时才变两列 | 所有人（无鉴权）|
 
 `/status` 保留为诊断页。
 
@@ -35,13 +35,13 @@
 /api/ws?room={code}
 ```
 
-房间是一次性的：admin 每轮新建一个（自动 `round-N`），结束后 `finish` 把它关闭，下一轮再建新的。没有「默认房间」。
+房间是一次性的：admin 每轮新建一个（自动 `R-001`），结束后 `finish` 把它关闭，下一轮再建新的。没有「默认房间」。
 
 引擎按房间隔离（`app/rooms.py` 的 `RoomRegistry`），每个房间有自己的时钟、进度和广播目标。**未知房间返回 404**（不会静默新建，避免打错 URL 就出现一场空节目）。
 
 ### 房间是数据
 
-**room = 一轮游戏，一次性**。每轮由 admin 新建一个房间（`round-1`、`round-2`…）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。房间列表是**历史**：`closed_at` 为空的房间只有一个——最新创建的那一个，即「当前轮」；`finish` 之后它关闭，下一轮是全新的房间。
+**room = 一轮游戏，一次性**。每轮由 admin 新建一个房间（`R-001`、`R-002`…）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。房间列表是**历史**：`closed_at` 为空的房间只有一个——最新创建的那一个，即「当前轮」；`finish` 之后它关闭，下一轮是全新的房间。
 
 房间有行：`rooms(code PK, created_at, closed_at)`。不再有 `label` / `event` 这类自由文本——房间的身份证就是 **code + 创建时间**。谁参加了这一轮记在独立的 `room_participants(room_code, player_id, joined_at)` 表里（复合主键、级联删除），**它不随房间关闭而清空**，所以历史房间永远能回答「这轮有谁」。
 
@@ -86,7 +86,7 @@
 上报接口 `POST /api/me/score`：
 
 ```json
-{ "room": "round-1", "node_index": 1, "question": 0, "points": 20 }
+{ "room": "R-001", "node_index": 1, "question": 0, "points": 20 }
 ```
 
 - **玩家令牌**（`require_player`）：管理员令牌会被拒绝，操作员不参与比赛。
@@ -107,7 +107,7 @@
 
 **公开总榜** `GET /api/leaderboard?limit=10`：**无鉴权**，跨房间按 `total_score` 倒序，只暴露 `rank / nickname / total_score`（不泄露 player_id / event / team / room），挂在观众后方的公开屏上。
 
-两个榜单共用同一个 `Leaderboard` 组件：**竖屏单列、横屏两列**（CSS `orientation` 响应式）。Ultimate 榜之后还有一个 `section: "total"` 节点，先显示占位文案，活动总榜设计待定。
+两个榜单共用同一个 `Leaderboard` 组件：**默认单列，只有纵向放不下（超过窗口底部）时才切成两列**；短榜单无论横竖屏都是一列往下排。Ultimate 榜之后还有一个 `section: "total"` 节点，先显示占位文案，活动总榜设计待定。
 
 ### 管理接口（阶段 2 的第一块）
 
@@ -115,7 +115,7 @@
 
 | 操作 | 接口 | 关键约束 |
 |---|---|---|
-| 房间 增 | `POST /api/rooms` | code 可省略（自动 `round-N`），给了就必须匹配 `^[a-z0-9][a-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
+| 房间 增 | `POST /api/rooms` | code 可省略（自动 `R-001`，零填充三位），给了就必须匹配 `^[A-Za-z0-9][A-Za-z0-9-]{1,31}$`；**建库的同时立刻建引擎**，否则刚给你的房间码打开就是 404 |
 | 房间 查 | `GET /api/rooms`、`GET /api/rooms/{code}` | 列表给 `players`（该轮参与人数）与 `clients`（活的连接），并带 `created_at` / `closed_at` |
 | 房间 删 | `DELETE /api/rooms/{code}` | **playing / paused 时拒绝（409）**——删引擎会把房间里每台 iPad 晾在半局 |
 | 玩家 增 | `POST /api/rooms/{code}/players` | 操作员替玩家建成员（设备掉了人还在名单上），重名照常编号 |
@@ -155,12 +155,12 @@ Arcade Data 的两张表：
 
 | 表 | 列 |
 |---|---|
-| Rooms | Room（当前轮打 `current` 标）、Created、Players、Status（open / closed）、`delete`；**最新一轮在最上面**，关闭的房间是历史 |
+| Rooms | Room（当前轮只有薄荷绿左边条标记，无 `current` 文字）、Created、Players、Status（open / closed）、`delete`；**最新一轮在最上面**，关闭的房间是历史 |
 | Players | Player、Event、Hallu、Data、Sabotage、Ultimate、Total（按 Total 倒序，无分数行读作 0） |
 
 几个刻意的取舍：
 
-- **控制台内嵌一块「小电视」**。Console 右上角是一个 `16:9` 的 `/display/{code}` iframe，高约窗口 40%，宽度等比缩放；窄屏（< 64rem）时移到控制按钮下方、宽度撑满。**iframe 按大屏真实尺寸 `1920×1080` 布局，再用 `transform: scale(containerWidth / 1920)` 整体缩小**——所以看到的是「大屏画面被按比例压小」，而不是「网页被塞进小视口导致字特别大、溢出」。看不清字不重要，知道屏幕在显示什么才重要。用 iframe 而不是复用组件，是因为大屏有自己的 WS 连接和 zustand store，同页复用会两个屏幕抢同一份状态。iframe 设了 `pointer-events: none`——它是画面，不能抢控制台的点击。代价是多一个 WS 连接，以及**它比控制台快最多 2 秒**（大屏走 WS 即时，控制台 `GET /api/rooms` 2 秒轮询），极短节点上可能看到两处差一个节点。
+- **控制台内嵌一块「小电视」**。Console 右上角是一个 `16:9` 的 `/display/{code}` iframe，高约窗口 **36%**，宽度等比缩放；窄屏（< 64rem）时移到控制按钮下方、宽度撑满。**iframe 按大屏真实尺寸 `1920×1080` 布局，再用 `transform: scale(containerWidth / 1920)` 整体缩小**——所以看到的是「大屏画面被按比例压小」，而不是「网页被塞进小视口导致字特别大、溢出」。看不清字不重要，知道屏幕在显示什么才重要。用 iframe 而不是复用组件，是因为大屏有自己的 WS 连接和 zustand store，同页复用会两个屏幕抢同一份状态。iframe 设了 `pointer-events: none`——它是画面，不能抢控制台的点击。代价是多一个 WS 连接，以及**它比控制台快最多 2 秒**（大屏走 WS 即时，控制台 `GET /api/rooms` 2 秒轮询），极短节点上可能看到两处差一个节点。
 - **跳节点按 section 分组，不显示 1–13 的序号**。每个盒子是「这轮游戏」，里面是它的内容：`Hallucination → challenge / quiz / ranking`、`Data → challenge / quiz / ranking`、`Sabotage → challenge / ranking`、`Ultimate → quiz / ranking`，外加 `Welcome`、`Activity → ranking`（总榜占位）、`Wrap up`。操作员想的是「跳到 Sabotage 的挑战」，不是「跳到第 8 个节点」。分组由快照里的 `flow` 现场推导（`section` 或 `score` + `type`），**前端不硬编码流程**，改 `flow.py` 后按钮自动跟着变。
 - **没有房间选择器**。房间是一次性的，**当前轮 = 唯一一个未关闭的房间**，操作员要操作的就是它，无需选择；上一场结束了就 `finish`，再 `new room` 开下一场。历史房间只作记录，不参与控制。
 - **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Created / 参与人数 / 四个分项。

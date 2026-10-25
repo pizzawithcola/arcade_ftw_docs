@@ -75,12 +75,12 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
 - [x] **游戏内 section 榜单**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后插一个 5 秒 `leaderboard` 节点，大屏与玩家平板都展示该房间按该 section 分数的排名；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
-- [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，竖屏单列 / 横屏两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score
+- [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，纵向放不下时才变两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score
 - [x] **总榜 placeholder**：Ultimate 榜之后一个 `section: "total"` 节点，先显示占位文案，设计待定
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` / `score_events` / `room_participants`；房间是一次性数据（code + 创建时间即全部身份），当前房间绑定记在 `players.room_code`，参与历史记在 `room_participants`
 - [x] 房间 / 玩家 / 分数的接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
-- [x] **room = 一轮游戏，一次性**：admin 新建 `round-N`，`finish` 关闭房间（写 `closed_at`、清空成员绑定），下一轮必须新开；大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**（最新未关闭房间）
+- [x] **room = 一轮游戏，一次性**：admin 新建 `R-001`，`finish` 关闭房间（写 `closed_at`、清空成员绑定），下一轮必须新开；大屏 `/display` 与玩家 `/play` **都自动跟随当前轮**（最新未关闭房间）
 - [x] 玩家不扫码：登录后在 `/play` 跟随当前轮；本轮 `finished` → 收尾屏 8 秒后回登录页
 - [x] 大屏展示题目（索引由引擎按 `questions`/`seconds_each` 算出），选项只在玩家屏
 - [x] 大屏空闲态 = **等待室**：Waiting Room + 已加入玩家名墙 + 人数（无二维码/网址/房间号，`qrcode.react` 已移除）

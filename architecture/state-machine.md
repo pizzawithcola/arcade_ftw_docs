@@ -47,7 +47,7 @@
 1. `POST /api/rooms` 建新房间 → `waiting`（`closed_at IS NULL`）。
 2. `finish` → 引擎到 `finished`，**同时**把 `rooms.closed_at` 写为当前时间、把该房间成员的 `room_code` / `team` 清空。房间从此是**历史**。
 3. 关闭后对同一房间再按 `start` → **409 `room is closed; create a new room`**，而不是状态机里的「→ playing」——状态机那张表只描述引擎，API 层会先拦下关闭的房间。
-4. 下一轮 = `new room`（新的 `round-N`），与旧房间完全无关；参与历史留在 `room_participants`。
+4. 下一轮 = `new room`（新的 `R-001`），与旧房间完全无关；参与历史留在 `room_participants`。
 
 所以「上一场结束后重开同一房间」在 API 上不可行，这正是刻意的：**一场一个新房间**，避免残留上一场的玩家。
 
