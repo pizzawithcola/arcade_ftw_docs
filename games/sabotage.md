@@ -63,6 +63,8 @@
   → 团队结果 → 个人分发放 → 实时排行榜 → Ultimate Showdown（3 题）
 ```
 
+> **队伍怎么到玩家手上**：分队在 `auto_start_sabotage` 里**先写 `players.team` 再广播 reveal**；玩家设备进入 sabotage 节点后**轮询 `GET /api/auth/me`**（约 1 秒一次）读到自己的队。队名是个人隐私，因此**不放进房间级 WS 快照**。
+
 每轮三段，每段投票 **20 秒**：
 
 1. **ATTACK**：进攻方在未 `SPENT` 且买得起的攻击卡里选（R1 6 张 → R2 5 张 → R3 4 张）
