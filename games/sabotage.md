@@ -1,6 +1,6 @@
 # Sabotage（AI Cyber Sabotage）
 
-主流程第 6 个节点（`type: game`，`game: sabotage`）。
+主流程第 8 个节点（`type: game`，`game: sabotage`，index 7，前面有 4 个游戏节点 + 3 个榜单节点）。
 设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。
 
 > 状态：**已完整实现（M0–M5）**——设计、团队分配、引擎/投票、流程接入、前端界面与结算写库全部就绪。
@@ -201,7 +201,7 @@ Sabotage 需要玩家提交投票。两个方案：
 
 `reveal 8s + 3×(attack 20s + defend 20s + resolve 4s) + team_result 6s + payout 5s ≈ 151s`，另加平票重投余量（每次 tie 5s，最多 3 次）。
 
-- `flow.py` 的 sabotage 节点 `duration_sec` 已从 30s 调到 **170s**（含平票余量），Sabotage 打完后主节点到点自动推进到 Ultimate Quiz。
+- `flow.py` 的 sabotage 节点 `duration_sec` 已从 30s 调到 **170s**（含平票余量），Sabotage 打完后主节点到点自动推进到 Sabotage 榜单（5s），再到 Ultimate Quiz。
 - **暂停联动**：操作员 pause/resume 主流程时，Sabotage 的子阶段时钟同步冻结/恢复（`game.py` 联动 + 广播）。
 - Sabotage 结束后 `sabotage_score` 的写库在 M5 完成。
 

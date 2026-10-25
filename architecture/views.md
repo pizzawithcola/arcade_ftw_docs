@@ -12,6 +12,7 @@
 | `/display` | Display View：大屏展示，自动跟随当前轮 | admin（含只读 display 令牌）|
 | `/display/:code` | Display View 的固定版：钉在某个房间（排障 / 复盘）| admin（含只读 display 令牌）|
 | `/admin` | Admin Panel：侧边栏三块（Console / Data / Setting）| admin（**必须 full scope**）|
+| `/leaderboard` | 公开总榜：前 10 名总分，自动刷新，竖屏单列 / 横屏两列 | 所有人（无鉴权）|
 
 `/status` 保留为诊断页。
 
@@ -97,6 +98,16 @@
 为什么按「题」而不是「节点」幂等：一局有多题，用节点键会让整局只能计一次；用题号既能让每题各自计分，又能让重试和「回退重跑同一节点」都不重复计分。
 
 > ⚠️ **分数由客户端计算**：题目目前在前端（`content.ts`），后端没有题目数据，所以只能信任设备上报（单条限 ±1000）。题库搬到后端后才有可能改成服务端计分。
+
+### 榜单（游戏内 section 榜 + 公开总榜）
+
+**游戏内 section 榜**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后，主流程插一个 5 秒 `leaderboard` 节点（`type: leaderboard`，`section: <分区>`）。**大屏与玩家平板都渲染它**——房间按该 section 的分数排名，分数来自各自的 `scores` 列，服务端已落库，所以榜单是即时的。
+
+数据接口 `GET /api/rooms/{code}/leaderboard?section=hallucination|data|sabotage|ultimate|total`：`require_signed_in`（玩家 / display / admin 都能读），返回 `{rank, nickname, score}`，按该列倒序，无 score 行读作 0。榜单是房间级数据，所以玩家平板看的是「自己房间」的排名，不是全网。
+
+**公开总榜** `GET /api/leaderboard?limit=10`：**无鉴权**，跨房间按 `total_score` 倒序，只暴露 `rank / nickname / total_score`（不泄露 player_id / event / team / room），挂在观众后方的公开屏上。
+
+两个榜单共用同一个 `Leaderboard` 组件：**竖屏单列、横屏两列**（CSS `orientation` 响应式）。Ultimate 榜之后还有一个 `section: "total"` 节点，先显示占位文案，活动总榜设计待定。
 
 ### 管理接口（阶段 2 的第一块）
 

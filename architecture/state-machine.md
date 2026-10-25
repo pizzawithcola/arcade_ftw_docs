@@ -85,7 +85,7 @@
 {
   "phase": "playing",
   "index": 2,
-  "node_count": 8,
+  "node_count": 13,
   "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20 },
   "remaining_ms": 16780,
   "question": { "index": 0, "count": 2, "seconds_each": 20, "remaining_ms": 14320 },

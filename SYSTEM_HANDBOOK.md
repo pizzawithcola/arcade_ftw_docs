@@ -26,11 +26,11 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 ## 3. 当前状态
 
-主线可以完整跑通：登录 → 等待室 → 引擎自动推进 8 个节点 → 收尾；三个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow），房间 / 玩家 / 分数已数据化，前后端已部署到 AWS。
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 13 个节点（含 4 个 section 榜单 + 总榜占位）→ 收尾；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
 
 已完成：
 
-- 前端：React 19 + Vite + TS + zustand；四条 UI 路线（登录 / 玩家 / 大屏 / 管理台）；三个真实玩法（Hallucination、Quiz、Data Shadow）；等待室、跟随当前轮、题目索引与大屏题面
+- 前端：React 19 + Vite + TS + zustand；五条 UI 路线（登录 / 玩家 / 大屏 / 管理台 / 公开榜单）；四个真实玩法（Hallucination、Quiz、Data Shadow、Sabotage）；等待室、跟随当前轮、题目索引与大屏题面、游戏内 section 榜单（大屏 + 平板）与公开总榜
 - 后端：FastAPI 入口（`/health`、`/health/db`、`/api/*`）、按房间隔离的状态机（`app/engine.py`）、流程配置（`app/flow.py`）、WS 推送（`app/ws.py`）、房间 / 玩家 / 分数接口、HMAC 令牌鉴权
 - 数据：PostgreSQL + Alembic，`rooms` / `players` / `scores` / `score_events` / `room_participants`
 - 运维：CloudFormation 双栈、OIDC 零密钥 CI、CloudFront 同源部署
@@ -74,6 +74,9 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
+- [x] **游戏内 section 榜单**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后插一个 5 秒 `leaderboard` 节点，大屏与玩家平板都展示该房间按该 section 分数的排名；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
+- [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，竖屏单列 / 横屏两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score
+- [x] **总榜 placeholder**：Ultimate 榜之后一个 `section: "total"` 节点，先显示占位文案，设计待定
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
 - [x] 数据库：`rooms` / `players` / `scores` / `score_events` / `room_participants`；房间是一次性数据（code + 创建时间即全部身份），当前房间绑定记在 `players.room_code`，参与历史记在 `room_participants`
 - [x] 房间 / 玩家 / 分数的接口（`/api/rooms`、`/api/players/{id}`、`/api/players/{id}/score`）；admin 面板可开新一轮
