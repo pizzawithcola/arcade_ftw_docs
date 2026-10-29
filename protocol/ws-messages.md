@@ -125,7 +125,7 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 
 ### 节点的两个身份字段
 
-- **`type` = 类别**（`intro` / `game` / `quiz` / `leaderboard` / `outro`），是引擎唯一关心的字段。
+- **`type` = 类别**（`intro` / `brief` / `game` / `quiz` / `leaderboard` / `outro`），是引擎唯一关心的字段。
 - **`game` = 具体游戏**，只出现在 `game` 节点上。三个游戏外观完全不同，但共用一个类别——所以**前端在自己那一层按 `game` 分派界面**，`type` 保持宽泛。
 
 前端用两个 class 落地这件事：`stage--game`（共用的游戏版式）**加** `stage--hallucination`（该游戏专属的钩子）。只给类别 class 的话，三个游戏会共用一个不可区分的钩子。
@@ -135,3 +135,17 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 **`section` = 榜单分区**：只出现在 `leaderboard` 节点上，决定该节点展示哪个分区的排名（`total` 是活动总榜占位）。大屏与玩家平板都渲染它。
 
 **`title` 纯展示**：观众看它，代码永远不拿它做分支。正因如此，两轮普通 quiz 和最后的 Ultimate Quiz 可以都是 `type: "quiz"`，而代码不需要区分它们。
+
+### `brief` 节点：每个游戏前的 15 秒玩法说明
+
+四组玩法（Hallucination / Data Shadow / Sabotage / Ultimate Quiz）各有一个前置 `brief` 节点，`duration_sec: 15`：
+
+```json
+{ "type": "brief", "brief": "sabotage", "title": "How Sabotage works",
+  "duration_sec": 15, "section": "sabotage" }
+```
+
+- **`brief` = 文案键**（`hallucination` / `data_shadow` / `sabotage` / `ultimate_quiz`）。引擎不认识它——只是一个普通的定时节点，到点自动前进；文案在前端 `arcade_ftw_fe/src/games/briefs.ts`，所以改措辞不用动后端。
+- **`section` 只用于分组**：让操作台把这张说明卡和它介绍的 section 放进同一个跳转框，表现为 `Challenge` 左边的一个 `intro` 按钮。`brief` 节点**不带 `score`**，永远不参与计分。
+- 两端都渲染：玩家平板一屏一列，大屏是同一段文字的大字号版本。
+- 顺序是硬约束：`brief` 必须**紧邻其后的**目标节点，`tests/test_flow.py` 会校验这条相邻关系和 15 秒时长。

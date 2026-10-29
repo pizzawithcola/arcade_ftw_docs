@@ -1,5 +1,8 @@
 # Sabotage（AI Cyber Sabotage）
 
+> 📌 **本文档描述的是现行代码（v1）**：6 张共享攻击卡 + 6×6 效果矩阵 + 单选投票。
+> 下一版重构的设计草案见 [sabotage-v2.md](./sabotage-v2.md)（18 卡主题绑定 + 三维向量 + 主维度判定，**尚未实现**）。
+
 主流程第 8 个节点（`type: game`，`game: sabotage`，index 7，前面有 4 个游戏节点 + 3 个榜单节点）。
 设计来源：`design/AI_Cyber_Sabotage_Developer_Storyboard_High_Resolution.pdf`（17 页）。
 
