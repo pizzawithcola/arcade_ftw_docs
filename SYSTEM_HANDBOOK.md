@@ -26,7 +26,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 ## 3. 当前状态
 
-主线可以完整跑通：登录 → 等待室 → 引擎自动推进 17 个节点（含 4 个 section 榜单 + 总榜占位 + 每个游戏前一个 15 秒 `brief` 玩法说明）→ 收尾；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 17 个节点（含 4 个 section 榜单 + 总榜占位 + 每个游戏前一个 `brief` 玩法说明；Sabotage 那个是 20 秒）→ 收尾；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
 
 已完成：
 
@@ -70,7 +70,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染 + 倒计时（当时的占位屏已由真实游戏替换）；管理员可 pause / resume / finish / 跳节点
 - [ ] AWS 剩余项（Secrets Manager 保存 `SecretKey` / `AdminPassword`、自定义域名 + ACM）见 [aws/](./aws)
 - [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
-- [x] **Sabotage 已完整实现**：红蓝三轮攻防投票、共享单次攻击卡 + 可复用防守卡、6×6 效果矩阵、自动开赛、团队结算写分，见 [games/sabotage.md](./games/sabotage.md)
+- [x] **Sabotage v2 已实现**（2026-10-30）：四轮、每轮独立牌库、三维向量（Data/People/Infra）+ 单目标判定、100 点预算买 1–4 张、队伍组合投票聚合、抽队伍移到 Intro、每轮 10 秒结算、终局四轮复盘，见 [games/sabotage-v2.md](./games/sabotage-v2.md)；v1 的 6×6 矩阵存档在 [games/sabotage.md](./games/sabotage.md)
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
