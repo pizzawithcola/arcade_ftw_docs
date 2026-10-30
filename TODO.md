@@ -21,14 +21,16 @@
 
 **目标**：玩家答完题分数自动落库，排行榜不再依赖管理员手改。
 
-**评分结构**（四列 = 四个分区，游戏与其后的 quiz 累加到同一列）：
+**评分结构**（四列 = 四个分区，每个分区现在只有一个节点在往里写）：
 
 | 分区（`scores` 列） | 计入的节点 |
 |---|---|
-| `hallucination_score` | Hallucination + Quiz round 1 |
-| `data_score` | Data Shadow + Quiz round 2 |
+| `hallucination_score` | Hallucination |
+| `data_score` | Data Shadow |
 | `sabotage_score` | Sabotage |
 | `ultimate_score` | Ultimate Quiz |
+
+> Hallucination 与 Data Shadow 后面的两轮 quiz 已删除，所以这两列不再由「游戏 + quiz」累加。
 
 **设计要点**：
 

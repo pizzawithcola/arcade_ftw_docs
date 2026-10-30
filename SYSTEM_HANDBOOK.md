@@ -26,7 +26,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 ## 3. 当前状态
 
-主线可以完整跑通：登录 → 等待室 → 引擎自动推进 20 个节点（含开场 Welcome、每个游戏前的 5s `title` 名字卡、3 个 `brief` 玩法说明 + Sabotage 节点内自带的 20s 规则卡、4 个 section 榜单 + 总榜占位）→ 收尾，全长约 11m21s；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 **17 个节点**（含开场 Welcome、3 个游戏前的 5s `title` 名字卡、3 个 `brief` 玩法说明 + Sabotage 节点内自带的 20s 规则卡、4 个 section 榜单 + 总榜占位、收尾）→ 结束，全长 **11m21s**；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
 
 已完成：
 
@@ -70,15 +70,16 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **垂直切片已上线并实测**（2026-10-11）：登录（昵称 / 管理员）→ 开播 → **自动推进** → 广播到所有客户端 → 前端按节点渲染 + 倒计时（当时的占位屏已由真实游戏替换）；管理员可 pause / resume / finish / 跳节点
 - [ ] AWS 剩余项（Secrets Manager 保存 `SecretKey` / `AdminPassword`、自定义域名 + ACM）见 [aws/](./aws)
 - [x] 前端已有三个**真实玩法界面**：Hallucination（五档 trust/doubt）、Quiz（四选一）、Data Shadow（文本拖选）；节点壳按 `game` / `type` 分派
-- [x] **Sabotage v2 已实现**（2026-10-30）：四轮、每轮独立牌库、三维向量（Data/People/Infra）+ 单目标判定、100 点预算买 1–4 张、队伍组合投票聚合、抽队伍移到 Intro、每轮 10 秒结算、终局四轮复盘，见 [games/sabotage-v2.md](./games/sabotage-v2.md)；v1 的 6×6 矩阵存档在 [games/sabotage.md](./games/sabotage.md)
+- [x] **Sabotage v2 已实现**（2026-10-30）：四轮、每轮独立 5 张牌库、三维向量（Data/People/Infra）+ 单目标判定、队伍组合投票聚合、抽队伍移到 Intro、每轮 10 秒结算、终局四轮复盘，见 [games/sabotage-v2.md](./games/sabotage-v2.md)；v1 的 6×6 矩阵存档在 [games/sabotage.md](./games/sabotage.md)
+- [x] **Sabotage 共享预算 + 40 张卡定稿**（2026-10-30 晚）：卡表从 48 张收到 **40 张**（每轮 5 攻 + 5 守），预算从「每轮 100 点」改成**四轮共用的 $100,000**，卡价换成与真实投入挂钩的 $1,000–$14,000。四轮打满要 $108,000（RED）/ $107,000（BLUE），所以**必然有一轮买不满**——这是玩法核心。设计稿 [games/sabotage_cards.xlsx](./games/sabotage_cards.xlsx)，代码 `sabotage_config.py` 的 `TOTAL_BUDGET` / `CARDS` / `ROUNDS`，测试守四条不变量（攻守差 1、单轮 25k–30k、四轮超预算、价格倒挂）。选卡时长 R1 50s / 其余 35s，节点 250s
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
-- [x] **游戏内 section 榜单**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后插一个 8 秒 `leaderboard` 节点。榜单按**累计总分**排序（不是该 section 单项），每行同时返回 `previous` / `score` / `total`，所以结算屏能演出「旧榜静置 1s → 数字滚动 → 卡片换位」；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
-- [x] **每题固定周期**：Hallucination 25s 抢答 + 5s 判决（节点 66s），quiz 20s + 5s（节点 60s = 5s 开场卡 + 2×25s + 5s 终局）；判决页 5 秒后自动跳题，**没有 Next 按钮**。quiz 节点的 `intro_sec: 5` 会在推导题号前被减掉，否则大屏会整整慢一题
-- [x] **每个游戏前 5s 名字卡**（`type: "title"`）：AI Hallucination / Data Shadow / AI Sabotage / Ultimate Showdown，放在规则卡**之前**——先知道玩什么，再看怎么玩。Sabotage 没有 flow 层的规则卡，名字卡直接接游戏节点
+- [x] **游戏内 section 榜单**：每个 section（Hallucination / Data Shadow / Sabotage / Ultimate）结束后插一个 8 秒 `leaderboard` 节点。榜单按**累计总分**排序（不是该 section 单项），每行同时返回 `previous` / `score` / `total`，所以结算屏能演出「旧榜静置 1s → 数字滚动 → 卡片换位」；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
+- [x] **每题固定周期**：Hallucination 25s 抢答 + 5s 判决 × **3 题**（节点 96s），Ultimate Quiz 20s + 5s × **5 题**（节点 130s）；判决页 5 秒后自动跳题，**没有 Next 按钮**。Ultimate 已去掉 5s 开场卡（节点不再带 `intro_sec`），第一秒就是第一题
+- [x] **每个游戏前 5s 名字卡**（`type: "title"`）：AI Hallucination / Data Shadow / AI Sabotage，放在规则卡**之前**——先知道玩什么，再看怎么玩。Sabotage 没有 flow 层的规则卡，名字卡直接接游戏节点；**Ultimate Showdown 没有名字卡**，由它的规则卡直接介绍并接题
 - [x] **开场 Welcome（12s）**：标题 + 一句话 + 四张游戏卡逐张从下方浮现，由节点时钟驱动（暂停会冻结在半途），大屏与 iPad 同一套
-- [x] **三套 quiz 题库**：跟着前面的游戏走（Hallucination 套 / Data Shadow 套 / Ultimate 的 HK+AI 套），由 flow 节点的 `score` 字段选 deck；**每套目前 2 题**，加题必须同时改 `questions` 与 `duration_sec`
+- [x] **一轮 quiz 题库**：Hallucination 与 Data Shadow 后面的两个 quiz 节点已删除，只剩 Ultimate Quiz；题库在 `src/games/quiz/content.ts`，**5 题**（港/监管 + AI），加题必须同时改 `content.ts` 与 `flow.py` 的 `questions` / `duration_sec`
 - [x] **Data Shadow 80s**（节点 86s），原来 50s 读不完段落
 - [x] **大屏题号由本地时钟推导**：WS 只在题目变化时带 `question`，直接读最后一次推送会让大屏整节点停在第一题
 - [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，纵向放不下时才变两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score

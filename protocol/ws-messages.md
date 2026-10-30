@@ -36,15 +36,15 @@ ws(s)://<host>/api/ws
 ```json
 {
   "phase": "waiting | playing | paused | finished",
-  "index": 2,
-  "node_count": 13,
-  "node": { "type": "quiz", "title": "Quiz round 1", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" },
-  "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 10 }, "…整条 rundown…" ],
+  "index": 13,
+  "node_count": 17,
+  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 130, "questions": 5, "seconds_each": 25, "score": "ultimate" },
+  "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 12 }, "…整条 rundown…" ],
   "remaining_ms": 16780,
   "question": {
     "index": 0,
-    "count": 2,
-    "seconds_each": 20,
+    "count": 5,
+    "seconds_each": 25,
     "remaining_ms": 14320
   },
   "server_time_ms": 1791733393351
@@ -103,23 +103,31 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 
 ## 流程节点
 
-当前主线（13 个节点）：
+当前主线（17 个节点，全长 11m21s）：
 
 ```json
-{ "type": "intro", "title": "Welcome",       "duration_sec": 10 }
-{ "type": "game",  "game": "hallucination",  "title": "Hallucination", "duration_sec": 66, "questions": 2, "seconds_each": 30, "score": "hallucination" }
-{ "type": "quiz",  "title": "Quiz round 1",  "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "hallucination" }
-{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 5 }
-{ "type": "game",  "game": "data_shadow",    "title": "Data Shadow",   "duration_sec": 51, "score": "data" }
-{ "type": "quiz",  "title": "Quiz round 2",  "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "data" }
-{ "type": "leaderboard", "section": "data",  "title": "Data Shadow standings", "duration_sec": 5 }
-{ "type": "game",  "game": "sabotage",       "title": "Sabotage",      "duration_sec": 170, "score": "sabotage" }
-{ "type": "leaderboard", "section": "sabotage", "title": "Sabotage standings", "duration_sec": 5 }
-{ "type": "quiz",  "title": "Ultimate Quiz", "duration_sec": 46, "questions": 2, "seconds_each": 20, "score": "ultimate" }
-{ "type": "leaderboard", "section": "ultimate", "title": "Ultimate standings", "duration_sec": 5 }
+{ "type": "intro", "title": "Welcome",       "duration_sec": 12 }
+{ "type": "title", "title": "hallucination", "duration_sec": 5, "section": "hallucination" }
+{ "type": "brief", "brief": "hallucination", "title": "How Hallucination works", "duration_sec": 15, "section": "hallucination" }
+{ "type": "game",  "game": "hallucination",  "title": "Hallucination", "duration_sec": 96, "questions": 3, "seconds_each": 30, "score": "hallucination" }
+{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 8 }
+{ "type": "title", "title": "data_shadow", "duration_sec": 5, "section": "data" }
+{ "type": "brief", "brief": "data_shadow", "title": "How Data Shadow works", "duration_sec": 15, "section": "data" }
+{ "type": "game",  "game": "data_shadow",    "title": "Data Shadow",   "duration_sec": 86, "score": "data" }
+{ "type": "leaderboard", "section": "data",  "title": "Data Shadow standings", "duration_sec": 8 }
+{ "type": "title", "title": "sabotage", "duration_sec": 5, "section": "sabotage" }
+{ "type": "game",  "game": "sabotage",       "title": "Sabotage",      "duration_sec": 250, "score": "sabotage" }
+{ "type": "leaderboard", "section": "sabotage", "title": "Sabotage standings", "duration_sec": 8 }
+{ "type": "brief", "brief": "ultimate_quiz", "title": "How the Ultimate Quiz works", "duration_sec": 15, "section": "ultimate" }
+{ "type": "quiz",  "title": "Ultimate Quiz", "duration_sec": 130, "questions": 5, "seconds_each": 25, "score": "ultimate" }
+{ "type": "leaderboard", "section": "ultimate", "title": "Ultimate standings", "duration_sec": 8 }
 { "type": "leaderboard", "section": "total", "title": "Activity Leaderboard", "duration_sec": 5 }
-{ "type": "outro", "title": "Wrap up",       "duration_sec": 10 }
+{ "type": "outro", "title": "Wrap up", "duration_sec": 10 }
 ```
+
+> 两个变化要注意：Hallucination 与 Data Shadow 之间的 `quiz` 节点已经删除（只剩 Ultimate Quiz 一个 quiz）；
+> Ultimate Quiz 前面**没有** `title` 名字卡，节点也**不带** `intro_sec`，第一秒就是第一题。
+
 
 配置源：`arcade_ftw_be/app/flow.py` 的 `ROUND_FLOW`。**改流程只改配置，不改引擎。**
 

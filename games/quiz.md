@@ -1,9 +1,11 @@
 # Quiz
 
-主流程里 `type: quiz` 的节点（当前 3 个：Quiz round 1、Quiz round 2、Ultimate Quiz）。
+主流程里 `type: quiz` 的节点**只剩最后一个**：Ultimate Quiz（Hallucination 和 Data Shadow 后面的两轮 quiz 已删除）。
 代码：`arcade_ftw_fe/src/games/quiz/`。
 
-三个 quiz 节点**共用同一个屏幕组件**、同一份题库。节点之间靠 `key={nodeIndex}` 重新挂载，所以上一轮的答案不会带进下一轮。
+节点靠 `key={nodeIndex}` 挂载；题库只有一份（`QUIZ_QUESTIONS`），因为只有一个 quiz 节点，不再有「按 section 选 deck」这层。
+
+**没有开场卡**：节点不带 `intro_sec`，第一秒就是第一题。它前面的 15s `brief`（How the Ultimate Quiz works）已经完成了介绍，所以这一轮也没有 5s 名字卡。
 
 ## 玩法
 
@@ -23,7 +25,7 @@
 
 ## 每道题一个倒计时
 
-两道题就是两个独立的 20 秒，不是「整个节点一个总倒计时」。
+五道题就是五个独立的 20 秒，不是「整个节点一个总倒计时」。
 
 - **倒计时跟随引擎暂停**（这是实测抓到的 bug）。裸 `Date.now()` 会让游戏内的倒计时在暂停期间继续走，题被烧掉。现在从引擎状态推导（`useNodeElapsed`）：`remainingMs = endsAt ?? heldMs` 相减得到已用时间——`endsAt` 与 `heldMs` 本来就是暂停感知的，所以不需要第二个时钟。
 - 计时锚定在 `questionStart`（切题时的**已用时间快照**），由 `useTicker` 每 250ms 触发重渲染。
@@ -38,13 +40,13 @@
 
 | 游戏 | 题目数 × 每题 | 节点时长 | 余量 |
 |---|---|---|---|
-| Hallucination | 2 × 30s = 60s | **66s** | 6s |
-| 每个 quiz | 2 × 20s = 40s | **46s** | 6s |
+| Hallucination | 3 × 30s = 90s | **96s** | 6s |
+| Ultimate Quiz | 5 × 25s = 125s | **130s** | 5s |
 
-> ⚠️ **改题目数量或 `time_limit` 时，必须同步改 `flow.py` 的 `duration_sec`。** 目前这两处是**手工保持一致的**，没有代码校验。题库搬到后端后，应该让后端从题目数据算出节点时长，而不是继续手写。
+> ⚠️ **改题目数量或 `time_limit` 时，必须同步改 `flow.py` 的 `duration_sec`。** 节点时长本身有测试守住（`tests/test_flow.py::test_question_nodes_outlast_their_questions`，要求 `duration_sec > intro_sec + questions × seconds_each`），但「题库里有几道题」和「节点声明几道」仍是两处手写，改题库时两边都要动。
 
 ## 当前状态与限制
 
-- **题目硬编码在前端**（`content.ts`）：2 道，都与 hallucination 主题相关。
-- **纯前端**：答案不落库、不上报、不做全场聚合。`scores` 表仍是零读写。
-- **三个 quiz 节点共用同一份题目**——所以现在第二轮的 Quiz round 2 会和第一轮**出一样的题**。等题库落地后按节点取不同题集。
+- **题目硬编码在前端**（`content.ts`）：5 道，全部是港/监管 + AI 主题（PCPD 框架、PDPO 六原则、生成式 AI 隐私、深伪付款、引用核查）。
+- **纯前端算分、后端落库**：每答一题就 `POST /api/scores` 上报，`section` 由节点的 `score` 决定（`ultimate`），所以名额落进 `ultimate_score` 列。
+- **分数上限**：5 题 × 20 = **100**。结算页的满分是从题数推导的，加题不用改这两处。
