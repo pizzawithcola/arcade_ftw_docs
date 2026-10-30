@@ -26,7 +26,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 ## 3. 当前状态
 
-主线可以完整跑通：登录 → 等待室 → 引擎自动推进 17 个节点（含 4 个 section 榜单 + 总榜占位 + 每个游戏前一个 `brief` 玩法说明；Sabotage 那个是 20 秒）→ 收尾；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 20 个节点（含开场 Welcome、每个游戏前的 5s `title` 名字卡、3 个 `brief` 玩法说明 + Sabotage 节点内自带的 20s 规则卡、4 个 section 榜单 + 总榜占位）→ 收尾，全长约 11m21s；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
 
 已完成：
 
@@ -74,7 +74,13 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
-- [x] **游戏内 section 榜单**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后插一个 5 秒 `leaderboard` 节点，大屏与玩家平板都展示该房间按该 section 分数的排名；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
+- [x] **游戏内 section 榜单**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后插一个 8 秒 `leaderboard` 节点。榜单按**累计总分**排序（不是该 section 单项），每行同时返回 `previous` / `score` / `total`，所以结算屏能演出「旧榜静置 1s → 数字滚动 → 卡片换位」；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
+- [x] **每题固定周期**：Hallucination 25s 抢答 + 5s 判决（节点 66s），quiz 20s + 5s（节点 60s = 5s 开场卡 + 2×25s + 5s 终局）；判决页 5 秒后自动跳题，**没有 Next 按钮**。quiz 节点的 `intro_sec: 5` 会在推导题号前被减掉，否则大屏会整整慢一题
+- [x] **每个游戏前 5s 名字卡**（`type: "title"`）：AI Hallucination / Data Shadow / AI Sabotage / Ultimate Showdown，放在规则卡**之前**——先知道玩什么，再看怎么玩。Sabotage 没有 flow 层的规则卡，名字卡直接接游戏节点
+- [x] **开场 Welcome（12s）**：标题 + 一句话 + 四张游戏卡逐张从下方浮现，由节点时钟驱动（暂停会冻结在半途），大屏与 iPad 同一套
+- [x] **三套 quiz 题库**：跟着前面的游戏走（Hallucination 套 / Data Shadow 套 / Ultimate 的 HK+AI 套），由 flow 节点的 `score` 字段选 deck；**每套目前 2 题**，加题必须同时改 `questions` 与 `duration_sec`
+- [x] **Data Shadow 80s**（节点 86s），原来 50s 读不完段落
+- [x] **大屏题号由本地时钟推导**：WS 只在题目变化时带 `question`，直接读最后一次推送会让大屏整节点停在第一题
 - [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，纵向放不下时才变两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score
 - [x] **总榜 placeholder**：Ultimate 榜之后一个 `section: "total"` 节点，先显示占位文案，设计待定
 - [ ] 题型注册表仍只有 `choice` 一个示例，且**尚未被引擎 / WS 调用**；题库无存储
