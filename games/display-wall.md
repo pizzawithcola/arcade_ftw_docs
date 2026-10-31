@@ -15,7 +15,7 @@
 | Hallucination | 完整对话（用户气泡 + AI 回答），**下方一行大字 `TRUST or DOUBT`**：`TRUST` 绿（`--c-win`）、`DOUBT` 琥珀（`--c-warning`）、中间 `or` 灰 |
 | Data Shadow | **两栏**：左边推文正文（没有 report panel，所以文字可以放大），右边三张图纵向排列、各占一档固定高度。整块必须放进框内——投影仪不滚动 |
 | Sabotage | 分队页「找同色的屏幕」、选卡页的目标与剩余预算、结算页本轮赢家 |
-| Ultimate | 题干 + **四个选项**（A/B/C/D 两列网格，与平板同一份选项、同一个字母）；每题最后 **5 秒**换成 **`STANDINGS`** 实时排行榜（`RoomLeaderboard`，section `ultimate`） |
+| Ultimate | 题干 + **四个选项**（A/B/C/D 两列网格，与平板同一份选项、同一个字母）；每题最后 **5 秒**换成 **`STANDINGS`** 实时排行榜（`RoomLeaderboard`，section `ultimate`）；第 4、5 题前的 **3 秒 bonus 卡**（`×2` / `×3` 大字 + 旋转环 + 扫描线，kicker 写 `bonus ×2 before question 4`） |
 | `leaderboard` | 该 section 的完整榜单 |
 | `outro` | 结束语 |
 
