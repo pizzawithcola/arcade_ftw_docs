@@ -9,11 +9,11 @@
 
 | 档位 | 分值 |
 |---|---|
-| Very Doubt | −10 |
-| Doubt | −5 |
+| Very Doubt | −200 |
+| Doubt | −100 |
 | Not Sure | 0 |
-| Partial Trust | +10 |
-| Full Trust | +20 |
+| Partial Trust | +100 |
+| Full Trust | +200 |
 
 题目内容是「用户问了什么」＋「AI 答了什么」，玩家只对**回复**做判断。
 

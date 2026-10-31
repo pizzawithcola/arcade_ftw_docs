@@ -15,20 +15,20 @@
 
 | # | 抽自 | 池子 | 答对 |
 |---|---|---|---|
-| 1 | Data Shadow + Phishing email | 5 题 | **+20** |
-| 2 | Hallucination | 5 题 | **+20** |
-| 3 | CEO impersonation（Sabotage R2）| 3 题 | **+20** |
-| 4 | Assistant and sources（R3 + R4）| 4 题 | **+40**（`×2`）|
-| 5 | Hong Kong | 5 题 | **+60**（`×3`）|
+| 1 | Data Shadow + Phishing email | 5 题 | **+100** |
+| 2 | Hallucination | 5 题 | **+100** |
+| 3 | CEO impersonation（Sabotage R2）| 3 题 | **+100** |
+| 4 | Assistant and sources（R3 + R4）| 4 题 | **+200**（`×2`）|
+| 5 | Hong Kong | 5 题 | **+300**（`×3`）|
 
-满分 **160**（`perfectScore()` 从 slot 表推导，改 slot 不用改别处）。选错或超时 0 分。
+满分 **800**（`perfectScore()` 从 slot 表推导，改 slot 不用改别处）。选错或超时 0 分。
 
 **第 1 位把 Data Shadow 和钓鱼邮件合成了一个池子**：两者都是「信息在别人的指令下离开公司」，
 所以共用一道题。代价是这一池里 3/5 是钓鱼题——**单局有 40% 的概率不考 Data Shadow**，这是合并
 的固有结果，不是 bug。
 
 **两个 bonus 故意放最后**：这一轮越往后越难、越值钱，落后的队伍还有得追。
-前三题值 60，后两题值 100——最后一题一道顶三题。
+前三题值 300，后两题值 500——最后一题一道顶三题。
 
 ## 抽题为什么必须是确定性的
 
@@ -111,4 +111,4 @@
 
 - **题目硬编码在前端**：`bank.ts` 22 道，分 7 个分类；这一轮从里面抽 5 道。
 - **纯前端算分、后端落库**：每答一题就 `POST /api/scores` 上报，`section` 由节点的 `score` 决定（`ultimate`），所以名额落进 `ultimate_score` 列。
-- **分数上限**：`perfectScore()` = **160**。结算页的满分是从 slot 表推导的，加 slot 不用改这两处。
+- **分数上限**：`perfectScore()` = **800**。结算页的满分是从 slot 表推导的，加 slot 不用改这两处。
