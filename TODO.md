@@ -118,8 +118,8 @@
 
 - [ ] 建题库表与 `GET /api/questions?node=`（或按房间/轮次下发）
 - [ ] 后端按题目数据**自动推导节点时长**，消除 `duration_sec` 与题目数量手工同步的隐患
-- [ ] 三个 quiz 节点取不同题集（现在 round 1 / round 2 / ultimate 出同一套题）
-- [ ] 前端 `content.ts` 降级为测试 fixture
+- [x] ~~三个 quiz 节点取不同题集~~ —— quiz 节点只剩 Ultimate 一个，改为**每次从 25 题题库按分类抽 6 题**（`draw.ts`）
+- [x] 题库只有一份（`bank.ts`），旧的多 deck 结构与 `content.ts` 已删除
 
 ## 4. 题型注册表接线
 

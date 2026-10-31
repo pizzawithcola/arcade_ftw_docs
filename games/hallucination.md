@@ -72,8 +72,8 @@ elapsed     = durationMs - remainingMs
 
 | 步骤 | 倒计时 | 结果 |
 |---|---|---|
-| 暂停中开始 | 30s | — |
-| 暂停 +3s | 30s | 冻结 ✓ |
+| 暂停中开始 | 20s | — |
+| 暂停 +3s | 20s | 冻结 ✓ |
 | 恢复 +4s | 27s | 正常走 ✓ |
 | 再暂停 +4s | 26s → 26s | 停在 26s ✓ |
 | 再恢复 +3s | 24s | **从 26s 续上**，没有跳变 ✓ |
@@ -87,4 +87,4 @@ elapsed     = durationMs - remainingMs
 - **揭晓是每题即时**的。要做成「全场一起揭晓」需要先有答案上报与聚合链路（`scores` 表目前仍是零读写）。
 - **超时 = 未作答 = 0 分**，并直接进入揭晓（显示 `Time's up`）。这样一块没人操作的屏幕不会让整场演出停摆。
 
-> ⚠️ **节点时长必须 ≥ 题目总时长**，否则引擎会在玩家答完前切走节点。当前 3 × 30s = 90s，节点 **96s**。改题目数量或 `QUESTION_SECONDS` 时**必须同步改 `flow.py` 的 `duration_sec`**；「节点时长够不够」有测试把关（`tests/test_flow.py::test_question_nodes_outlast_their_questions`），但题数与节点声明仍是两处手写。
+> ⚠️ **节点时长必须 ≥ 题目总时长**，否则引擎会在玩家答完前切走节点。当前 3 × 25s（20s 抢答 + 5s 判决）= 75s，节点 **78s**，末 3 秒是总分页。改题目数量或 `QUESTION_SECONDS` 时**必须同步改 `flow.py` 的 `duration_sec`**；「节点时长够不够」有测试把关（`tests/test_flow.py::test_question_nodes_outlast_their_questions`），但题数与节点声明仍是两处手写。

@@ -26,7 +26,7 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 
 ## 3. 当前状态
 
-主线可以完整跑通：登录 → 等待室 → 引擎自动推进 **17 个节点**（含开场 Welcome、3 个游戏前的 5s `title` 名字卡、3 个 `brief` 玩法说明 + Sabotage 节点内自带的 20s 规则卡、4 个 section 榜单 + 总榜占位、收尾）→ 结束，全长 **11m21s**；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
+主线可以完整跑通：登录 → 等待室 → 引擎自动推进 **13 个节点**（开场 Welcome、3 个 15s `opening`（3s 名字 + 12s 规则）+ Sabotage 节点内自带的 15s 规则卡、3 个 section 榜单 + 总榜、收尾）→ 结束，全长 **9m09s**；四个玩法界面已有真实实现（Hallucination / Quiz / Data Shadow / Sabotage），房间 / 玩家 / 分数 / 榜单已数据化，前后端已部署到 AWS。
 
 已完成：
 
@@ -75,11 +75,12 @@ Arcade FTW = 第二个版本的游戏。与上一代系统 **完全平行、完�
 - [x] **Sabotage 单人房跳过**：1 个玩家时分不成两队，主流程直接越过该节点，该玩家拿 `SOLO_SCORE`（2700，完美获胜分），不再干等 170 秒
 - [x] **Sabotage 队伍同步与重分队**：玩家设备进节点后轮询 `GET /api/auth/me` 拿自己的队；`go/{index}` / `reset` 先丢弃旧引擎，每次进节点 5 都按当前玩家重新随机分队、从头重跑（排练可反复快进/回退）
 - [x] **Sabotage 结算文案按身份**：玩家平板显示自己阵营的结果（攻成/攻败、守成/守破），大屏显示本轮赢家（RED/BLUE WINS THE ROUND）
-- [x] **游戏内 section 榜单**：每个 section（Hallucination / Data Shadow / Sabotage / Ultimate）结束后插一个 8 秒 `leaderboard` 节点。榜单按**累计总分**排序（不是该 section 单项），每行同时返回 `previous` / `score` / `total`，所以结算屏能演出「旧榜静置 1s → 数字滚动 → 卡片换位」；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
-- [x] **每题固定周期**：Hallucination 25s 抢答 + 5s 判决 × **3 题**（节点 96s），Ultimate Quiz 20s + 5s × **5 题**（节点 130s）；判决页 5 秒后自动跳题，**没有 Next 按钮**。Ultimate 已去掉 5s 开场卡（节点不再带 `intro_sec`），第一秒就是第一题
-- [x] **每个游戏前 5s 名字卡**（`type: "title"`）：AI Hallucination / Data Shadow / AI Sabotage，放在规则卡**之前**——先知道玩什么，再看怎么玩。Sabotage 没有 flow 层的规则卡，名字卡直接接游戏节点；**Ultimate Showdown 没有名字卡**，由它的规则卡直接介绍并接题
-- [x] **开场 Welcome（12s）**：标题 + 一句话 + 四张游戏卡逐张从下方浮现，由节点时钟驱动（暂停会冻结在半途），大屏与 iPad 同一套
-- [x] **一轮 quiz 题库**：Hallucination 与 Data Shadow 后面的两个 quiz 节点已删除，只剩 Ultimate Quiz；题库在 `src/games/quiz/content.ts`，**5 题**（港/监管 + AI），加题必须同时改 `content.ts` 与 `flow.py` 的 `questions` / `duration_sec`
+- [x] **游戏内 section 榜单**：Hallucination / Data Shadow / Sabotage 后面各插一个 5 秒 `leaderboard` 节点；Ultimate 后面**没有**分节榜——它的分数直接进 10 秒活动总榜，避免同一批数字连播两次。榜单按**累计总分**排序（不是该 section 单项），每行同时返回 `previous` / `score` / `total`，所以结算屏能演出「旧榜静置 1s → 数字滚动 → 卡片换位」；`GET /api/rooms/{code}/leaderboard?section=` 供两端读取
+- [x] **每题固定周期**：Hallucination 20s 抢答 + 5s 判决 × **3 题**（节点 78s，末 3s 是总分页），Ultimate Quiz 20s + 5s × **5 题**（节点 128s，第 4 题 ×2 / 第 5 题 ×3，末 3s 是结算页）；判决页 5 秒后自动跳题，**没有 Next 按钮**。Ultimate 不带 `intro_sec`，第一秒就是第一题
+- [x] **每个游戏一个 15s `opening`**（2026-10-31）：原来的 5s `title` 名字卡 + 15s `brief` 规则卡合并成**一个节点**，前 `title_sec: 3` 秒是名字卡、后 12 秒是规则，规则三条由节点时钟逐条浮现。`title` / `brief` 两个类型已从 flow 删除，`titles.ts` + `briefs.ts` 合成 `games/openings.ts`。Sabotage 仍然没有 flow 层开场（分队后游戏内自带 15s 规则卡）
+- [x] **开场 Welcome（10s）**：标题 + 一句话 + 四张游戏卡逐张从下方浮现，全部动画在**第 5 秒**结束（最后一张卡 3.9s 起、4.78s 落定，页脚 4.2s），剩 5 秒读卡片。由节点时钟驱动（暂停会冻结在半途），大屏与 iPad 同一套
+- [x] **题库重写为 25 题 + 每轮抽 6 题**（2026-10-31）：`arcade_ftw_fe/src/games/quiz/bank.ts` 改为**按游戏分类的 25 题**（Data Shadow 5 / Hallucination 5 / Phishing 3 / CEO 3 / Assistant 2 / Knowledge base 2 / HK 5），每题带 `explain` 并回指游戏，答案 A6/B6/C7/D6 且无相邻同答案、无「正确答案最长」偏差。`draw.ts` 用 `room:nodeIndex` 作种子的 PRNG 抽 6 题（大屏与平板必须一致），第 5 题 ×2、第 6 题 ×3，满分 180。管理台 `Game Setting` 两张表展示「how it draws」与 25 题全表，见 [games/quiz.md](./games/quiz.md)
+- [x] **一轮 quiz 题库**：Hallucination 与 Data Shadow 后面的两个 quiz 节点已删除，只剩 Ultimate Quiz；题库在 `src/games/quiz/bank.ts`（22 题），每轮抽 5 题，改 slot 表必须同时改 `flow.py` 的 `questions` / `duration_sec`（`tests/test_flow.py` 守住时长下限）
 - [x] **Data Shadow 80s**（节点 86s），原来 50s 读不完段落
 - [x] **大屏题号由本地时钟推导**：WS 只在题目变化时带 `question`，直接读最后一次推送会让大屏整节点停在第一题
 - [x] **公开总榜**：`/leaderboard` 页面（前 10 名，自动刷新，纵向放不下时才变两列），主页有入口；`GET /api/leaderboard` 公开无鉴权，只暴露 rank / nickname / total_score

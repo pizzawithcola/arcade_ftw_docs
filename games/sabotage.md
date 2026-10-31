@@ -191,7 +191,7 @@ Sabotage 需要玩家提交投票。两个方案：
 | 剧本 | 三轮 attack/defend 文案 + learning 提示 | 钓鱼邮件 / CEO 冒充 / AI 助手操纵 |
 | 攻击卡 | 6 张的 name / description / cost / success / fail | 见上表 |
 | 防守卡 | 6 张同上 | 见上表 |
-| 计时 | team reveal、每段投票、tie 重投 | 8s / 20s / 5s |
+| 计时 | team reveal、每段投票、tie 重投 | 10s / 25s / 5s |
 | 预算 | 每队初始 budget | $100k |
 | **效果矩阵** | attack × defence 谁克谁 | **已定稿**：见上「效果矩阵」表 |
 | 结算 | payout 规则、success/fail 的分值 | 胜利方 +100；blocked/partial/failed 见计分 |
@@ -202,7 +202,7 @@ Sabotage 需要玩家提交投票。两个方案：
 
 子阶段时长在 `sabotage_config.py` 的 `TIMINGS` 里，正常总时长 ≈ **2.5 分钟**：
 
-`reveal 8s + 3×(attack 20s + defend 20s + resolve 4s) + team_result 6s + payout 5s ≈ 151s`，另加平票重投余量（每次 tie 5s，最多 3 次）。
+`10s 分队 + 15s 规则 + 35s 首轮选卡 + 3×25s 选卡 + 4×5s 揭晓 + 5s 终局 = 160s`，flow 槽位 163s（+3s 保险）。
 
 - `flow.py` 的 sabotage 节点 `duration_sec` 已从 30s 调到 **170s**（含平票余量），Sabotage 打完后主节点到点自动推进到 Sabotage 榜单（5s），再到 Ultimate Quiz。
 - **暂停联动**：操作员 pause/resume 主流程时，Sabotage 的子阶段时钟同步冻结/恢复（`game.py` 联动 + 广播）。
