@@ -252,14 +252,15 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 
 | 位置 | 显示 |
 |---|---|
-| 平板选卡页·上半区左栏 | 场景卡：`ROUND 1 OF 4 · RED ATTACKS · TARGET · DATA · YOU ARE ATTACKER` + 主题名（大白字）+ 一句话剧本 |
-| 平板选卡页·上半区右栏 | 实时开销卡：`LIVE SPEND $91,000 LEFT FOR ALL FOUR ROUNDS` + `Earlier rounds $0 / This round $9,000` + 三维进度条 + `2 cards of 4 · 3/4 voted` |
+| 平板选卡页·上半区左栏 | **只有两行**：主题名（`Phishing Email` 等，见 `revealCopy.ts` 的 `ROUND_TITLE`）+ 一句指令「`You are the Attacker.` Choose the cards below to …」。轮次号、`TARGET` 徽章、`YOU ARE ATTACKER` 都已删除 |
+| 平板选卡页·上半区右栏 | `$91,000`（无标签）+ `Spend for this round $9,000` + 三维进度条 + `2 cards of 4 · 3/4 voted`。`LIVE SPEND` / `LEFT FOR ALL FOUR ROUNDS` / `Earlier rounds` 三处标签已删除 |
+| 暂停提示 | 只有一处：`GAME PAUSED`（琥珀色）出现在顶栏最左、箭头图案旁，选卡页右栏不再显示暂停 |
 | 上半区（竖屏）| 左右两栏改为上下堆叠 |
-| 平板卡牌 | 上部 icon（统一 74px 高，保留原画配色）/ 中部卡名 + 描述 / 下部 Data·People·Infra 点数 + 价格 |
+| 平板卡牌 | 上部 icon（统一 **148px**，即原 74px 的两倍，保留原画配色）/ 下部卡名（预留两行、底对齐）+ 描述 + Data·People·Infra 点数 + 价格；整卡约 410px 高，文字贴着分数区而不是贴着 icon |
 | 卡牌 icon | **全部 39 张卡的图都已接入**（四轮攻守各 5 张，共 39 个 id / 39 张图：`Lookalike Website` 两轮共用一张）；放在 `arcade_ftw_fe/public/sabotage_icons/<round>/<round><side>_<slug>.PNG`，在 `src/games/sabotage/cardIcons.ts` 里按 card id 登记；**一整副牌全部有图才显示图**（`deckHasArt`），半套图会被当成画面故障；现在八副牌都齐，规则留着给以后新加的轮次 |
-| 平板结算页 | `RED spent $27,000 · BLUE spent $26,000` 与 `Left to spend — RED $73,000 · BLUE $74,000` |
-| 平板终局页 | `Red finished with $19,000 · Blue with $20,000` |
-| 大屏选卡 | `Left to spend — RED $100,000 · BLUE $100,000` |
+| 平板结算页 | 大标题按「你是谁 + 有没有打穿」四选一：`Successfully Attacked` / `Attack Failed` / `Successfully Defended` / `Defense Failed`，自己赢下的那一版用自己的角色色发光；三个维度每行 `Data　5 vs 3　<一句文案>　WIN/LOSE`（攻方分在前，赢下该列的一方**加粗**，平局两边都加粗）；底部两栏 `ATTACKER (+120 / $19,000 spent ($81,000 left))` ： `DEFENDER (+80 / $21,000 spent ($79,000 left))` |
+| 平板终局页 | `Team A finished with $19,000 · Team B with $20,000` |
+| 大屏选卡 | `Left to spend — TEAM A $100,000 · TEAM B $100,000` |
 | 大屏结算 | 本轮花费 + 双方剩余 |
 
 金额一律格式化成 `$14,000`（`toLocaleString`），不出现裸数字。
