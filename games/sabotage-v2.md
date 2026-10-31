@@ -22,8 +22,8 @@
 
 | # | 阶段 | 时长 | 说明 |
 |---|---|---|---|
-| 1 | `team_reveal` | 10s | **抽队伍在这里**：玩家看到自己是红还是蓝，以及本轮攻/守 |
-| 2 | `brief` | 15s | 规则卡：共享预算、三维、单目标、最多 4 张 |
+| 1 | `team_reveal` | 10s | **抽队伍在这里**：`YOU ARE / TEAM A`（白）→ `YOU ARE ATTACKER IN ROUND I`（攻方词紫、守方词蓝）→ 一行双色图例 `PURPLE ROUND TO ATTACK · BLUE ROUND TO DEFEND`。大屏同步提示「找同色的屏幕、和队友会合」，并给出两侧人数 |
+| 2 | `brief` | 15s | 规则卡，六行**每 2 秒出现一行**（0/2/4/6/8/10s）：`Four Rounds, One Team Wins` → 共享预算 → 攻守互换（Attacker 紫 / Defender 蓝）→ 选卡组 Attack 紫 / Defense 蓝、每轮最多 4 张 → 和队友讨论 → 底注 `Sharpest Spear vs Most Balanced Shield` |
 | 3–10 | `select` / `reveal` ×4 | 35s + 5s，然后 25s + 5s ×3 | R1 给 35 秒（同时是教学局 + 第一次规划预算），其余 25 秒。揭晓只有 5 秒，是全场最紧的一屏 |
 | 11 | `final` | 5s | 终局分数 + 四轮复盘 + 双方剩余预算。整局 160s，flow 槽位 163s |
 
@@ -279,7 +279,12 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 `rgba(219,0,17,·)` / `rgba(175,0,14,·)` 换成了 `color-mix(in srgb, var(--c-brand) …, transparent)`，
 在根节点数值完全等价，其他页面视觉零变化。
 
-只有「阵营」相关的两处（开局抽队伍的队名、终局比分）继续用固定的红/浅色，走 `--sab-team-red`。
+只有「阵营」相关的两处（终局比分、终局双方余额）继续用固定的红/浅色，走 `--sab-team-red`。
+队名本身**不再上色**：平板第一屏的 `TEAM A / TEAM B` 是纯白（`--c-text`），队伍的身份靠
+「这台设备整屏是什么颜色」来传达——攻方紫、守方蓝，所以大屏只说「找同色的屏幕」。
+
+`#e21ce2` / `#16c6e2` 已提升为全局 token `--c-attack` / `--c-defend`（`src/design/tokens.css`），
+因为规则页和图例行需要**同时**出现两种颜色，而 `--c-brand` 只能等于其中之一。
 
 ---
 
