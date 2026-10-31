@@ -252,13 +252,14 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 
 | 位置 | 显示 |
 |---|---|
-| 平板选卡页·上半区左栏 | **只有两行**：主题名（`Phishing Email` 等，见 `revealCopy.ts` 的 `ROUND_TITLE`）+ 一句指令「`You are the Attacker.` Choose the cards below to …」。轮次号、`TARGET` 徽章、`YOU ARE ATTACKER` 都已删除 |
+| 平板选卡页·上半区左栏 | **只有两行**：主题名（`Phishing Email` 等，见 `revealCopy.ts` 的 `ROUND_TITLE`，第 4 轮是 `Poisoning the AI's Data Sources`）+ 一句指令。R1 用客户原话（`You are the Defender. Choose from the cards below to defend against an AI-enabled phishing attack.` / `You are the Attacker. Choose from the attacks below to craft a successful Phishing Attack.`），R2–R4 用 `Choose the AI attacks below / Choose the AI Defense below / Choose the Defense Methods below`。轮次号、`TARGET` 徽章、`YOU ARE ATTACKER` 都已删除 |
 | 平板选卡页·上半区右栏 | `$91,000`（无标签）+ `Spend for this round $9,000` + 三维进度条 + `2 cards of 4 · 3/4 voted`。`LIVE SPEND` / `LEFT FOR ALL FOUR ROUNDS` / `Earlier rounds` 三处标签已删除 |
 | 暂停提示 | 只有一处：`GAME PAUSED`（琥珀色）出现在顶栏最左、箭头图案旁，选卡页右栏不再显示暂停 |
+| 分队页 / 规则页·底部 | `PURPLE ROUND TO ATTACK · BLUE ROUND TO DEFEND` 固定在画面最下方（`sab__inner` 的第三行），不再跟在队名下面 |
 | 上半区（竖屏）| 左右两栏改为上下堆叠 |
-| 平板卡牌 | 上部 icon（统一 **148px**，即原 74px 的两倍，保留原画配色）/ 下部卡名（预留两行、底对齐）+ 描述 + Data·People·Infra 点数 + 价格；整卡约 410px 高，文字贴着分数区而不是贴着 icon |
+| 平板卡牌 | 上部 icon（统一 **148px**，即原 74px 的两倍，保留原画配色）/ 卡名（预留两行、**顶部对齐**）+ 描述（固定 4 行高，保证五张卡的名字与描述各自对齐）+ Data·People·Infra 点数 + 价格 |
 | 卡牌 icon | **全部 39 张卡的图都已接入**（四轮攻守各 5 张，共 39 个 id / 39 张图：`Lookalike Website` 两轮共用一张）；放在 `arcade_ftw_fe/public/sabotage_icons/<round>/<round><side>_<slug>.PNG`，在 `src/games/sabotage/cardIcons.ts` 里按 card id 登记；**一整副牌全部有图才显示图**（`deckHasArt`），半套图会被当成画面故障；现在八副牌都齐，规则留着给以后新加的轮次 |
-| 平板结算页 | 大标题按「你是谁 + 有没有打穿」四选一：`Successfully Attacked` / `Attack Failed` / `Successfully Defended` / `Defense Failed`，自己赢下的那一版用自己的角色色发光；三个维度每行 `Data　5 vs 3　<一句文案>　WIN/LOSE`（攻方分在前，赢下该列的一方**加粗**，平局两边都加粗）；文案在 `revealCopy.ts`，规则是**大白话 + 逐轮绑主题**：攻方视角自己赢下该列读 `You successfully …`，没赢读 `You couldn't …`；守方视角的失败/成功句写对方做了什么（`Their email filter blocked your phishing email`）。48 句**无一重复**，每句都必须点出该轮的机制（R1 钓鱼邮件 / R2 付款审批 / R3 AI 的安全规则 / R4 信源校验），INFRA 一列不再四轮共用同一句。结算行的 `WIN` 用绿色（`--c-win`）、`LOSE` 用红色（`--c-lose`），带边框色块；底部两栏 `ATTACKER (+120 / $19,000 spent ($81,000 left))` ： `DEFENDER (+80 / $21,000 spent ($79,000 left))` |
+| 平板结算页 | 表格宽度 **51rem**（原 34rem 的 1.5 倍），与标题、比分区各留 ≥32px；三行内文字换行后**纵向居中**；大标题按「你是谁 + 有没有打穿」四选一：`Successfully Attacked` / `Attack Failed` / `Successfully Defended` / `Defense Failed`，自己赢下的那一版用自己的角色色发光；三个维度每行 `Data　5 vs 3　<一句文案>　WIN/LOSE`（攻方分在前，赢下该列的一方**加粗**，平局两边都加粗）；文案在 `revealCopy.ts`，规则是**大白话 + 逐轮绑主题**：攻方视角自己赢下该列读 `You successfully …`，没赢读 `You couldn't …`；守方视角的失败/成功句写对方做了什么（`Their email filter blocked your phishing email`）。48 句**无一重复**，每句都必须点出该轮的机制（R1 钓鱼邮件 / R2 付款审批 / R3 AI 的安全规则 / R4 信源校验），INFRA 一列不再四轮共用同一句。结算行的 `WIN` 用绿色（`--c-win`）、`LOSE` 用红色（`--c-lose`），带边框色块；底部比分区三列 `auto auto auto` **整体居中**（两侧与冒号等距），`ATTACKER +120 / $19,000 spent ($81,000 left)` ： `DEFENDER +80 / $21,000 spent ($79,000 left)` |
 | 平板终局页 | `Team A finished with $19,000 · Team B with $20,000` |
 | 大屏选卡 | `Left to spend — TEAM A $100,000 · TEAM B $100,000` |
 | 大屏结算 | 本轮花费 + 双方剩余 |
