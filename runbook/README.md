@@ -18,6 +18,8 @@ https://d39s9y5ma27s5.cloudfront.net/health # 健康检查
 - [ ] 确认 `curl https://<上面域名>/health/db` 返回 200（**不能只看 `/health`**——它刻意不查库）
 - [ ] 数据库快照已建
 - [ ] 前端产物已上线，`assets/index-*.js` 哈希确认更新
+- [ ] **本机跑一遍 `npm run test:e2e`（`arcade_ftw_fe`）**：46 条，覆盖 HTTP/WS 层与浏览器层。注意**先跑 `pytest` 再跑 E2E**——`pytest` 现在退出时会删掉自己建的房间并重新打开 `main`，这个顺序错了会让 `/api/rooms/current` 指向一个测试房
+- [ ] 确认 `curl https://<域名>/api/rooms/current` 返回的是**这次要用的房间**，不是上一轮的残留
 - [ ] 大屏（kiosk）自愈与硬重载已开启
 - [ ] 实机验证玩家链路：登录 → `/play` **自动跟随当前轮**（不扫码）→ 等待室只显示三行
 - [ ] 实机验证大屏：`/display` 自动跟随当前轮；等待室人数与名墙随玩家 `join` 更新
