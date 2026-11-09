@@ -38,12 +38,12 @@ ws(s)://<host>/api/ws
   "phase": "waiting | playing | paused | finished",
   "index": 13,
   "node_count": 17,
-  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 128, "questions": 5, "seconds_each": 25, "score": "ultimate" },
+  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "score": "ultimate" },
   "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 10 }, "…整条 rundown…" ],
   "remaining_ms": 16780,
   "question": {
     "index": 0,
-    "count": 5,
+    "count": 3,
     "seconds_each": 25,
     "remaining_ms": 14320
   },
@@ -103,26 +103,26 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 
 ## 流程节点
 
-当前主线（13 个节点，全长 9m09s）：
+当前主线（13 个节点，共 562 秒 / 9m22s）：
 
 ```json
 { "type": "intro",   "title": "Welcome",           "duration_sec": 10 }
 { "type": "opening", "game": "hallucination", "title": "AI Hallucination", "duration_sec": 15, "title_sec": 3, "section": "hallucination" }
-{ "type": "game",    "game": "hallucination", "title": "Hallucination", "duration_sec": 78, "questions": 3, "seconds_each": 25, "score": "hallucination" }
+{ "type": "game",    "game": "hallucination", "title": "Hallucination", "duration_sec": 90, "questions": 3, "seconds_each": 30, "score": "hallucination" }
 { "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 5 }
 { "type": "opening", "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 15, "title_sec": 3, "section": "data" }
-{ "type": "game",    "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 90, "score": "data" }
+{ "type": "game",    "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 60, "score": "data" }
 { "type": "leaderboard", "section": "data",        "title": "Data Shadow standings", "duration_sec": 5 }
-{ "type": "game",    "game": "sabotage",      "title": "Sabotage",         "duration_sec": 163, "score": "sabotage" }
-{ "type": "leaderboard", "section": "sabotage",    "title": "Sabotage standings", "duration_sec": 5 }
+{ "type": "game",    "game": "sabotage",      "title": "AI Cyber Battle",         "duration_sec": 203, "score": "sabotage" }
+{ "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle standings", "duration_sec": 5 }
 { "type": "opening", "game": "ultimate_quiz", "title": "Ultimate Showdown", "duration_sec": 15, "title_sec": 3, "section": "ultimate" }
-{ "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 128, "questions": 5, "seconds_each": 25, "score": "ultimate" }
+{ "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
 { "type": "leaderboard", "section": "total",       "title": "Activity Leaderboard", "duration_sec": 10 }
 { "type": "outro",   "title": "Wrap up",           "duration_sec": 10 }
 ```
 
 > 四个要注意的变化（2026-10-31）：
-> 1. **`title` 和 `brief` 两种节点已合并为 `opening`**：15 秒里前 `title_sec`（3 秒）是名字卡，后 12 秒是规则。少四个节点，也少四次控制台点击。
+> 1. **名字卡与规则卡已合并为 `opening`**：15 秒里前 `title_sec`（3 秒）是名字卡，后 12 秒是规则，控制台不再需要分别跳转。
 > 2. **Sabotage 前面没有 `opening`**：它先抽队伍，然后由游戏自己在节点内播 15 秒规则卡，flow 层再加一张就把同一局介绍两次。
 > 3. **Ultimate 后面没有分节榜**：分数直接进 10 秒活动总榜，避免同一批数字连播两次。
 > 4. Hallucination 与 Data Shadow 之间的 `quiz` 节点仍然没有（只剩 Ultimate Quiz 一个 quiz），Ultimate Quiz 也不带 `intro_sec`，第一秒就是第一题。
@@ -131,27 +131,20 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 
 ### 节点的两个身份字段
 
-- **`type` = 类别**（`intro` / `brief` / `game` / `quiz` / `leaderboard` / `outro`），是引擎唯一关心的字段。
-- **`game` = 具体游戏**，只出现在 `game` 节点上。三个游戏外观完全不同，但共用一个类别——所以**前端在自己那一层按 `game` 分派界面**，`type` 保持宽泛。
+- **`type` = 类别**（`intro` / `opening` / `game` / `quiz` / `leaderboard` / `outro`），是引擎唯一关心的字段。
+- **`game` = 具体游戏**，出现在 `opening` 与 `game` 节点上。各游戏外观不同，所以**前端在自己那一层按 `game` 分派界面**，`type` 保持宽泛。
 
 前端用两个 class 落地这件事：`stage--game`（共用的游戏版式）**加** `stage--hallucination`（该游戏专属的钩子）。只给类别 class 的话，三个游戏会共用一个不可区分的钩子。
 
-**`score` = 计分分区**：只有计分节点才有，取值 `hallucination` / `data` / `sabotage` / `ultimate`。游戏与其后的 quiz 共用同一个分区，服务端据此决定玩家上报的分数写哪一列（详见 [views](../architecture/views.md)）。
+**`score` = 计分分区**：只有计分节点才有，取值 `hallucination` / `data` / `sabotage` / `ultimate`。当前每个分区由一个计分节点写入；服务端据此决定玩家上报的分数写哪一列（详见 [views](../architecture/views.md)）。
 
-**`section` = 榜单分区**：只出现在 `leaderboard` 节点上，决定该节点展示哪个分区的排名（`total` 是活动总榜占位）。大屏与玩家平板都渲染它。
+**`section` = 玩法 / 榜单分区**：`opening` 节点用它把开场归入对应玩法；`leaderboard` 节点用它决定展示哪个分区的排名（`total` 是活动总榜）。大屏与玩家平板都渲染榜单。
 
 **`title` 纯展示**：观众看它，代码永远不拿它做分支。正因如此，两轮普通 quiz 和最后的 Ultimate Quiz 可以都是 `type: "quiz"`，而代码不需要区分它们。
 
-### `brief` 节点：每个游戏前的 15 秒玩法说明
+### `opening` 节点：名字与规则合成 15 秒
 
-四组玩法（Hallucination / Data Shadow / Sabotage / Ultimate Quiz）各有一个前置 `brief` 节点，`duration_sec: 15`：
+Hallucination、Data Shadow 与 Ultimate Quiz 各有一个 `opening` 节点，`duration_sec: 15`、`title_sec: 3`：前三秒显示名字卡，后十二秒逐条显示规则。Sabotage 在自动分队后由游戏内部展示规则卡，因此没有 flow 层的 `opening`。
 
-```json
-{ "type": "brief", "brief": "sabotage", "title": "How Sabotage works",
-  "duration_sec": 15, "section": "sabotage" }
-```
-
-- **`brief` = 文案键**（`hallucination` / `data_shadow` / `sabotage` / `ultimate_quiz`）。引擎不认识它——只是一个普通的定时节点，到点自动前进；文案在前端 `arcade_ftw_fe/src/games/briefs.ts`，所以改措辞不用动后端。
-- **`section` 只用于分组**：让操作台把这张说明卡和它介绍的 section 放进同一个跳转框，表现为 `Challenge` 左边的一个 `intro` 按钮。`brief` 节点**不带 `score`**，永远不参与计分。
-- 两端都渲染：玩家平板一屏一列，大屏是同一段文字的大字号版本。
-- 顺序是硬约束：`brief` 必须**紧邻其后的**目标节点，`tests/test_flow.py` 会校验这条相邻关系和 15 秒时长。
+- `game` 选择开场内容，`section` 供管理台归组；文案由前端 `arcade_ftw_fe/src/games/openings.ts` 提供。
+- 开场节点不带 `score`，不参与计分；平板与大屏使用同一份规则内容。
