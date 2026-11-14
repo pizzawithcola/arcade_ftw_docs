@@ -38,7 +38,7 @@ ws(s)://<host>/api/ws
   "phase": "waiting | playing | paused | finished",
   "index": 13,
   "node_count": 17,
-  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "score": "ultimate" },
+  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "answer_sec": 20, "score": "ultimate" },
   "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 10 }, "…整条 rundown…" ],
   "remaining_ms": 16780,
   "question": {
@@ -103,22 +103,45 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 
 ## 流程节点
 
-当前主线（13 个节点，共 562 秒 / 9m22s）：
+主线是**按房间的模块集合生成的**，不是一份固定列表。默认（全开）13 个节点、528 秒；建房时传 `modules` 可以只留其中几个，节点数、总时长、满分随之变化，且**被隐藏的模块在建房时就不在 flow 里**——引擎没有"跳过"这个动作。
 
 ```json
-{ "type": "intro",   "title": "Welcome",           "duration_sec": 10 }
+// POST /api/rooms
+{ "code": "R-111", "modules": ["welcome", "hallucination", "data", "ultimate", "total", "wrapup"] }
+```
+
+七个模块键：`welcome`（intro）、`hallucination` / `data` / `sabotage` / `ultimate`（各含它的 opening / 游戏 / 分节榜）、`total`（活动总榜）、`wrapup`（outro）。`modules` 省略或 `null` = 全开，兼容本改动之前的所有房间。
+
+| 配置 | 节点 | 时长 | 满分 |
+|---|---|---|---|
+| 全开（HK FTW / HK Employee） | 13 | 8m48s / 528s | 2800 |
+| 关 AI Cyber Battle（SG FTW） | 11 | 5m25s / 325s | 2000 |
+| 关 Battle + 关 Ultimate | 9 | 3m46s / 226s | 1400 |
+
+房间生效后**不可改**：要换配置只能新建房间。这是刻意的——节点索引是分数上报键（`room:node_index:question`）的一部分，运行中改流程会让一条迟到的上报写进别的游戏的列。
+
+`state` 消息里相应多了两个字段：
+
+```json
+{ "modules": ["data", "hallucination", "total", "ultimate", "welcome", "wrapup"], "total_sec": 325.0 }
+```
+
+默认全开时的主线（13 个节点，共 528 秒 / 8m48s）：
+
+```json
+{ "type": "intro",   "title": "Welcome",           "duration_sec": 10, "requires": "welcome" }
 { "type": "opening", "game": "hallucination", "title": "AI Hallucination", "duration_sec": 15, "title_sec": 3, "section": "hallucination" }
-{ "type": "game",    "game": "hallucination", "title": "Hallucination", "duration_sec": 90, "questions": 3, "seconds_each": 30, "score": "hallucination" }
-{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 5 }
+{ "type": "game",    "game": "hallucination", "title": "Hallucination", "duration_sec": 90, "questions": 3, "seconds_each": 30, "answer_sec": 25, "score": "hallucination" }
+{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 8, "requires": "hallucination" }
 { "type": "opening", "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 15, "title_sec": 3, "section": "data" }
-{ "type": "game",    "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 60, "score": "data" }
-{ "type": "leaderboard", "section": "data",        "title": "Data Shadow standings", "duration_sec": 5 }
+{ "type": "game",    "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 60, "answer_sec": 50, "score": "data" }
+{ "type": "leaderboard", "section": "data",        "title": "Data Shadow standings", "duration_sec": 8, "requires": "data" }
 { "type": "game",    "game": "sabotage",      "title": "AI Cyber Battle",         "duration_sec": 203, "score": "sabotage" }
-{ "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle standings", "duration_sec": 5 }
+{ "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle standings", "duration_sec": 8, "requires": "sabotage" }
 { "type": "opening", "game": "ultimate_quiz", "title": "Ultimate Showdown", "duration_sec": 15, "title_sec": 3, "section": "ultimate" }
-{ "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
-{ "type": "leaderboard", "section": "total",       "title": "Activity Leaderboard", "duration_sec": 10 }
-{ "type": "outro",   "title": "Wrap up",           "duration_sec": 10 }
+{ "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 84, "questions": 3, "seconds_each": 25, "answer_sec": 20, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
+{ "type": "leaderboard", "section": "total",       "title": "Activity Leaderboard", "duration_sec": 10, "requires": "total" }
+{ "type": "outro",   "title": "Wrap up",           "duration_sec": 10, "requires": "wrapup" }
 ```
 
 > 四个要注意的变化（2026-10-31）：
@@ -126,6 +149,8 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 > 2. **Sabotage 前面没有 `opening`**：它先抽队伍，然后由游戏自己在节点内播 15 秒规则卡，flow 层再加一张就把同一局介绍两次。
 > 3. **Ultimate 后面没有分节榜**：分数直接进 10 秒活动总榜，避免同一批数字连播两次。
 > 4. Hallucination 与 Data Shadow 之间的 `quiz` 节点仍然没有（只剩 Ultimate Quiz 一个 quiz），Ultimate Quiz 也不带 `intro_sec`，第一秒就是第一题。
+
+> 5. **`answer_sec` 是「选手能操作的那段」**（2026-11-14 补）。一个节点的钟比它长：每题答完还有 5 秒 verdict，Data Shadow 交卷后还有 10 秒揭晓。大屏原来直接播节点钟，于是 Ultimate 每题大屏读 0:25、iPad 读 20s——全场唯一对不上的数字。现在大屏播 `answer_sec` 这一段，尾段单独倒数（正好是 iPad 上 verdict 的那几秒）。Sabotage 不带这个字段：两边都读 `sabotage.remaining_ms`，同一个来源。
 
 配置源：`arcade_ftw_be/app/flow.py` 的 `ROUND_FLOW`。**改流程只改配置，不改引擎。**
 
