@@ -26,7 +26,7 @@ QUESTION_TYPES: dict[str, QuestionType] = {
 
 ## 现状与规划
 
-> ⚠️ **注册表目前是占位实现**：引擎与 WS 还没有题目下发 / 答案上报链路，`QUESTION_TYPES` 尚未被调用。现在三个游戏的题目和计分都在前端（`arcade_ftw_fe/src/games/*`），答案不落库。下表的「已实现」仅指处理器本身存在。
+> ⚠️ **注册表目前是占位实现**：引擎与 WS 还没有通过题型注册表下发题目或接收原始答案，`QUESTION_TYPES` 尚未被调用。Hallucination、Data Shadow 与 Ultimate Quiz 的题目和计分逻辑在前端（`arcade_ftw_fe/src/games/*`）；原始答案不发送、不落库，但计算出的分数会通过 `POST /api/me/score` 上报。下表的「已实现」仅指处理器本身存在。
 
 | type_key | 状态 |
 |---|---|

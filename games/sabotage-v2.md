@@ -1,4 +1,4 @@
-# Sabotage v2 —— 主题绑定 · 多维向量 · 共享预算
+# Sabotage v2（对外名 **AI Cyber Battle**）—— 主题绑定 · 多维向量 · 共享预算
 
 > **状态：已实现（40 张卡 + $100,000 共享预算，2026-10-30 更新）。**
 > 前端与后端都已切到 v2；[sabotage.md](./sabotage.md) 描述的 v1 仅作历史存档。
@@ -13,19 +13,19 @@
 
 ## 1. 一句话规则
 
-> 四轮，每队一张 **$100,000** 的卡。每轮有一个**目标维度**，只比那一列；但钱是通着用的——
+> 四轮，每队共用 **$100,000** 预算。每轮有一个**目标维度**，只比那一列；但钱是通着用的——
 > 这一轮花痛快，第四轮就没得打。
 
 ---
 
-## 2. 已落地的流程（引擎总时长 243s，flow 节点占位 250s）
+## 2. 已落地的流程（引擎总时长 200s，flow 节点占位 203s）
 
 | # | 阶段 | 时长 | 说明 |
 |---|---|---|---|
 | 1 | `team_reveal` | 10s | **抽队伍在这里**：`YOU ARE / TEAM A`（白）→ `YOU ARE ATTACKER IN ROUND I`（攻方词紫、守方词蓝）→ 一行双色图例 `PURPLE ROUND TO ATTACK · BLUE ROUND TO DEFEND`。大屏同步提示「找同色的屏幕、和队友会合」，并给出两侧人数 |
-| 2 | `brief` | 15s | 规则卡，六行**每 2 秒出现一行**（0/2/4/6/8/10s）：`Four Rounds, One Team Wins` → 共享预算 → 攻守互换（Attacker 紫 / Defender 蓝）→ 选卡组 Attack 紫 / Defense 蓝、每轮最多 4 张 → 和队友讨论 → 底注 `Sharpest Spear vs Most Balanced Shield` |
-| 3–10 | `select` / `reveal` ×4 | 35s + 5s，然后 25s + 5s ×3 | R1 给 35 秒（同时是教学局 + 第一次规划预算），其余 25 秒。揭晓只有 5 秒，是全场最紧的一屏 |
-| 11 | `final` | 5s | 终局分数 + 四轮复盘 + 双方剩余预算。整局 160s，flow 槽位 163s |
+| 2 | `brief` | 15s | 规则卡，五行**每 2 秒出现一行**（0/2/4/6/8s）：`Four Rounds, One Team Wins` → 共享预算 → 攻守互换（Attacker 紫 / Defender 蓝）→ 选卡组 Attack 紫 / Defense 蓝、每轮最多 4 张 → 和队友讨论。字号按 +20% 放大（标题 `clamp(1.32rem,3.36vw,2.04rem)`、正文 `clamp(0.98rem,2.28vw,1.2rem)`），行距 1.55 |
+| 3–10 | `select` / `reveal` ×4 | 45s + 5s，然后 35s + 5s ×3 | R1 给 45 秒（同时是教学局 + 第一次规划预算），其余 35 秒。揭晓只有 5 秒，是全场最紧的一屏。**2026-11-01 起每轮 +10 秒**（客户要留出争论时间），整局 160s → **200s**，flow 槽位 163s → **203s** |
+| 11 | `final` | 5s | 终局分数 + 四轮复盘 + 双方剩余预算。整局 200s，flow 槽位 203s |
 
 四轮目标维度：Data → People → Infra → **Data（知识库投毒）**；攻守交替，两队各攻两轮，
 这是唯一能避免「多攻一轮的队伍靠结构优势获胜」的排法。
@@ -125,7 +125,7 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 | Human in the Loop | $8,000 | 1 | 1 | **2** |
 | Scan the File First | $6,000 | 2 | 0 | **3** |
 | Assistant Restrictions | $2,000 | 1 | 0 | **1** |
-| Human Approval | $1,500 | 1 | 1 | 0 |
+| Human Override | $1,500 | 1 | 1 | 0 |
 
 ### R4 · Poisoning the AI's sources（目标 **Data**）· BLUE 攻 / RED 守
 
@@ -146,14 +146,26 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 
 | 卡 | 价格 | D | P | I |
 |---|---|---|---|---|
-| Verify the Source | $10,000 | **3** | 0 | 1 |
-| Approved Sources Only | $7,000 | **3** | 0 | 2 |
-| Human Approval | $5,000 | **2** | 2 | 0 |
-| Approved Source List | $5,000 | 1 | 0 | 2 |
-| Source Required | $1,500 | 0 | 0 | 1 |
+| Official Sources Only | $10,000 | **3** | 0 | 1 |
+| Periodic Data Review | $9,000 | **3** | 0 | **3** |
+| Human Override | $5,000 | **2** | 2 | 0 |
+| White List | $5,000 | 1 | 0 | 2 |
+| Citation Mandatory | $1,500 | 0 | 0 | 1 |
 
 > 两处刻意的重复：`Lookalike Website`（$2,000）在 R2 与 R4 是**同一张卡**，代码里共用一个 id；
-> `Human Approval` 在 R3（$1,500）与 R4（$5,000）**向量不同**，是两个不同的 id。
+> R3 的 `Human Override`（$1,500）与 R4 的 `Human Override`（$5,000）**向量不同，是两个不同的 id**
+> （`human_approval` / `human_approval_signoff`）。名字相同是客户要求，两轮不会同屏，所以不冲突。
+>
+> R4 防守五张卡按客户口径全部换名（2026-11-01）：Verify the Source → **Official Sources Only**、
+> Approved Sources Only → **Periodic Data Review**、Human Approval → **Human Override**、
+> Approved Source List → **White List**、Source Required → **Citation Mandatory**。
+> 客户清单里另有一条「NEW CARD: Regular review of the data source」，经确认与 `Periodic Data Review`
+> 是同一张卡的两个说法，**不新增第 6 张**，牌组仍是 5 张。
+>
+> **2026-11-01 再平衡**：`Periodic Data Review` 是「人排班、定期复查来源」，人力成本最高，所以
+> **$7,000 → $9,000**，副属性 Infra 从 2 提到 **3**（目标列 Data 仍是 3，向量上限就是 3）。
+> 目标列的四张最强组合（3+3+2+1）不变，攻守 10 : 9 的一分差不变；
+> 这一侧「打满一轮」的成本从 $27,000 涨到 **$29,000**，仍在 25k–30k 的设计区间内。
 >
 > `Unchecked Auto-Sync` 是全场唯一目标格为 0 的卡（0,0,2）：它是纯粹的「侧翼陷阱」，
 > 买它等于放弃本轮——留着是有意的诱饵。
@@ -207,15 +219,15 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 侧翼维度：逐维同规则比较，统计攻方领先的列数 flanks（0~2）
 ```
 
-### 计分表（每轮恒定 **200** 分池，击穿永远比守住拿得多）
+### 计分表（每轮恒定 **200** 分池，整局最高 800；击穿永远比守住拿得多）
 
 | 击穿 | flanks | 结果名 | 攻方 | 守方 |
 |---|---|---|---|---|
 | 否 | 0 | Full defence | 0 | **200** |
-| 否 | 1 | Flank leak | 120 | 480 |
-| 否 | 2 | Severe flank leak | 240 | 360 |
-| 是 | 0 | Narrow breach | 320 | 280 |
-| 是 | 1 | Effective breach | 420 | 180 |
+| 否 | 1 | Flank leak | 40 | 160 |
+| 否 | 2 | Severe flank leak | 80 | 120 |
+| 是 | 0 | Narrow breach | 120 | 80 |
+| 是 | 1 | Effective breach | 160 | 40 |
 | 是 | 2 | Total compromise | **200** | 0 |
 
 **没买成牌就是没攻破，所以弃权一律算守方赢**：只有一边空手、或两边都空手，守方都拿满 200。早先「双方都空手 = 0–0 平局」的规则已经取消——那等于允许一支队伍把不想打的一轮停掉。
@@ -292,7 +304,7 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 
 ## 8. 开放问题
 
-1. `Approved Sources Only` 与 `Approved Source List` 同在一副牌里，名字过于相似（内容层，暂缓）。
+1. ~~`Approved Sources Only` 与 `Approved Source List` 名字过于相似~~ — 已按客户口径改为 `Periodic Data Review` 与 `White List`。
 2. `Vishing Call` / `Exfiltrate Data` 仍是行话，非技术听众可能不熟（内容层，暂缓）。
 3. R1 攻 `Fake Sign-In Page` $8,000 拿 Data 3，性价比过于集中（数据层，暂缓）。
 4. 决胜轮缺口 $8,000 是否足够痛——要等真实试玩；想更紧就调低 `TOTAL_BUDGET`，
@@ -308,7 +320,7 @@ Data（数据 / 信息） · People（人员 / 意识） · Infra（基础设施
 | 攻击卡 | 6 张共享、单次使用 | 20 张，每轮独立 5 张 |
 | 防守卡 | 6 张每轮复用 | 20 张，每轮独立 5 张 |
 | 判定 | 6×6 手工矩阵三档（blocked/partial/failed） | 3 维向量逐维比较 + 目标维度胜负 |
-| 计分 | 单卡 success/fail 分值累计 | 击穿 × 侧翼 6 档，恒定 600 分池 |
+| 计分 | 单卡 success/fail 分值累计 | 每轮 200 分池；四轮最高 800，按击穿与侧翼档位分配 |
 | 预算 | $100k，每轮重置，永远花不完 | **$100,000 四轮共用**，钱是真实的约束 |
 | 卡价 | 10–45 | **$1,000–$14,000**（与真实投入挂钩） |
 | 剧本 | 纯文案，不影响玩法 | 决定目标维度，直接影响打法 |

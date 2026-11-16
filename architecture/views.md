@@ -43,7 +43,7 @@
 
 **room = 一轮游戏，一次性**。每轮由 admin 新建一个房间（`R-001`、`R-002`…）。玩家登录后进 `/play`，自己跟随 `current` 并调用 `join`，从而**绑定到那一轮**；不再有扫码这一步。房间列表是**历史**：`closed_at` 为空的房间只有一个——最新创建的那一个，即「当前轮」；`finish` 之后它关闭，下一轮是全新的房间。
 
-房间有行：`rooms(code PK, created_at, closed_at)`。不再有 `label` / `event` 这类自由文本——房间的身份证就是 **code + 创建时间**。谁参加了这一轮记在独立的 `room_participants(room_code, player_id, joined_at)` 表里（复合主键、级联删除），**它不随房间关闭而清空**，所以历史房间永远能回答「这轮有谁」。
+房间由 **code + 创建时间**标识。当前 API 创建房间只接受 `code`，不提供 `label` / `event` 编辑能力；模型中仍保留一个 nullable `Room.event` 字段，但新建流程不写入它。谁参加了这一轮记在独立的 `room_participants(room_code, player_id, joined_at)` 表里（复合主键、级联删除），**它不随房间关闭而清空**，所以历史房间永远能回答「这轮有谁」。
 
 启动时 `RoomRegistry.load()` 读这张表为每个房间建引擎；**读库失败只记警告并退回内存 fallback `main`**——否则 DB 抖动会让任务启动失败、被 ALB 反复重启，反而把内存里的节目全清掉（该 fallback 只存在于进程内，不写库）。
 
@@ -97,17 +97,41 @@
 
 为什么按「题」而不是「节点」幂等：一局有多题，用节点键会让整局只能计一次；用题号既能让每题各自计分，又能让重试和「回退重跑同一节点」都不重复计分。
 
-> ⚠️ **分数由客户端计算**：题目目前在前端（`src/games/quiz/bank.ts`，22 题，每轮确定性抽 5 题），后端没有题目数据，所以只能信任设备上报（单条限 ±1000）。题库搬到后端后才有可能改成服务端计分。
+> ⚠️ **分数由客户端计算**：题目目前在前端（`src/games/quiz/bank.ts`，20 题，每轮确定性抽 5 题），后端没有题目数据，所以只能信任设备上报（单条限 ±1000）。题库搬到后端后才有可能改成服务端计分。
 
 ### 榜单（游戏内 section 榜 + 公开总榜）
 
-**游戏内 section 榜**：每个 section（Hallucination+quiz1 / Data+quiz2 / Sabotage / Ultimate）结束后，主流程插一个 5 秒 `leaderboard` 节点（`type: leaderboard`，`section: <分区>`）。**大屏与玩家平板都渲染它**——房间按该 section 的分数排名，分数来自各自的 `scores` 列，服务端已落库，所以榜单是即时的。
+**游戏内 section 榜**：Hallucination、Data Shadow 与 Sabotage 结束后，主流程各插一个 5 秒 `leaderboard` 节点（`type: leaderboard`，`section: <分区>`）。Ultimate 后直接进入活动总榜，不再重复播分节榜。**大屏与玩家平板都渲染 section 榜**——房间按该 section 的分数排名，分数来自对应的 `scores` 列，服务端已落库。
 
-数据接口 `GET /api/rooms/{code}/leaderboard?section=hallucination|data|sabotage|ultimate|total`：`require_signed_in`（玩家 / display / admin 都能读），返回 `{rank, nickname, score}`，按该列倒序，无 score 行读作 0。榜单是房间级数据，所以玩家平板看的是「自己房间」的排名，不是全网。
+数据接口 `GET /api/rooms/{code}/leaderboard?section=hallucination|data|sabotage|ultimate|total`：`require_signed_in`（玩家 / display / admin 都能读），每行返回 `{rank, nickname, score, previous, total}`。`score` 是当前分区得分，`previous` 是进入该分区前的累计分（最低为 0），`total` 是当前累计分；排名按 `total` 倒序，无 score 行读作 0。榜单是房间级数据，所以玩家平板看的是「自己房间」的排名，不是全网。
 
 **公开总榜** `GET /api/leaderboard?limit=10`：**无鉴权**，跨房间按 `total_score` 倒序，只暴露 `rank / nickname / total_score`（不泄露 player_id / event / team / room），挂在观众后方的公开屏上。
 
-两个榜单共用同一个 `Leaderboard` 组件：**默认单列，只有纵向放不下（超过窗口底部）时才切成两列**；短榜单无论横竖屏都是一列往下排。Ultimate 榜之后还有一个 `section: "total"` 节点，先显示占位文案，活动总榜设计待定。
+两个榜单共用同一个 `Leaderboard` 组件：**默认单列，只有纵向放不下（超过窗口底部）时才切成两列**；短榜单无论横竖屏都是一列往下排。
+
+视觉上它是「仪表」而不是「打印件」：
+
+- 顶部一条会流动的红色光轨（`.ldb__rail`），整块板子背后一团红色辉光（`.ldb::before`）；
+- 标题是两端切角的牌子（`clip-path` + 红色渐变），不是一行浮空的字；
+- 面板（`.ldb__frame`）带角标、顶部高光边和内阴影，像一块嵌入式屏幕；
+- `RANK / PLAYER / SCORE` 三列标签和行用**同一个 grid**，标签正对数据；
+- 名次牌是斜切的 `01…10`；榜首那行底色泛红、名字加粗前面带 ▲；
+- 每行背后按「该行分数 ÷ 榜首分数」铺一条**带刻度的红色电平条**（`--fill` + 重复渐变），
+  一眼能看出分差，不用比对数字；0 分的行不画条（0% 的条仍会画出那条亮红右边，像是有一分）。
+
+行高固定，所以两列切换的测量逻辑不受影响。
+
+### 最终榜（`section: "total"`）：一叠箱子
+
+活动总榜不是「渲染完就摆在那儿」，而是**一摞慢慢垒起来的箱子**（`Leaderboard` 的 `pile` 模式）：
+
+- **从最后一名开始**：第 10 名先从屏幕上方落下；接着第 9 名压在上一条肩上落下，**已经落好的每条会被压得往下沉一点**（`PILE_PRESS_PX = 9`，240ms 回弹）。
+- 依此类推向上垒，直到**前三名**出场——它们落下时**放光**（红色外发光）、**放大回弹**（`PILE_POP_MS`）、以及一道横扫的高光，名次越高越大声。
+- 位置不是用 CSS 动画算的，而是 `pileAt(clock, index, count)` 每帧算出来的：落点、被压的位移、前三名的 pop 比例，都在一个纯函数里。原因很实际——同一帧里既要「自己下落」又要「被别人压」，两条 CSS 动画抢同一个 `transform`，后者会盖掉前者。
+- 最终榜**永远单列**（两列不是一摞）；超过 **10 人**就退回普通榜单（`PILE_MAX_ROWS`），因为一列放不下，垒起来也没意义。
+- `prefers-reduced-motion` 下只保留落位，不做放光和横扫。
+
+数据来自同一个 `GET /api/rooms/{code}/leaderboard?section=total`（按 `total_score` 倒序），所以大屏和平板同时开始垒、垒出同一个结果。
 
 ### 管理接口（阶段 2 的第一块）
 
@@ -136,6 +160,17 @@
 - **大屏 `/display/:code` 仍然存在**，用于把某块屏固定在某一个房间（排障 / 复盘用）。
 - 玩家侧**不再需要扫码**：登录后进 `/play`，自己问 `/api/rooms/current`（公开接口，只给 code + phase），跟随当前轮；每 3 秒问一次，换轮自动跟上。
 - 本轮 `finished` → 玩家屏显示「That's a wrap」，**8 秒后清令牌回登录页**；下一轮开始时重新登录即进新房间。
+
+### 收尾屏（`type: outro`，Wrap up）
+
+最后一个节点是**打字机效果的收尾页**（`src/games/WrapUp.tsx`），大屏和 iPad 是同一个组件、同一段文字：
+
+> Thank you for your participation. AI is evolving fast, and the AI Cyber Arcade brings to life how we can use it safely. Embrace the change and **Remember to keep a human in the loop.**
+
+- 逐字显示（**30ms/字**，约 6 秒打完，节点 10 秒留 4 秒回读）；进度由**节点时钟**驱动（`elapsedMs`），所以暂停时打字也会停。
+- 最后一句是 `<strong class="wrapup__call">`，**红色 + 发光**；其余白色。这是全站唯一一处正文级红字——它出现在整场的最后一屏，字号够大（大屏 `clamp(1.6rem,3.2vw,2.6rem)`）。
+- 光标是一个闪烁的方块，打完自动隐藏；`prefers-reduced-motion` 下不打字、不闪。
+- 注意：chassis 是**三行 grid**（tab / bar / stage），所以这屏也必须给一个 `hud__bar`，否则 stage 落在中间那行、整个框会塌成文字高度（踩过）。
 - **`finish` 同时清空该房间的成员**（`room_code` / `team` 置空）：一轮正式结束即散场，`start` 重开同一个房间得到的是空房间，不会残留上一场的玩家。玩家行与分数都保留（只解除房间归属），复盘查人不受影响。
 - 一个设备在**轮次结束后才登录**（没参与过这一轮）不会被弹回登录页，而是停在「Between rounds」等下一轮 —— 否则会形成「登录 → 结束 → 再登录」的死循环。
 
@@ -149,7 +184,7 @@
 |---|---|---|
 | **Arcade Console** | 单个控制面板，两行布局：**上行**左侧竖排 `start/pause/resume/finish/reset`、右侧 **16:9 的大屏实时预览**（`/display/{code}` 内嵌 iframe，高度约窗口 40%）；**下行**是按 section 分组的跳节点按钮 | `GET /api/rooms`（2s 轮询，快照带 `flow`）+ iframe 自己的 WS |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
-| **Game Setting** | 占位，留给房间默认值 / 节点时长 | — |
+| **Game Setting** | 只读展示 Ultimate Quiz 的抽题规则与完整题库；题库目前在前端维护 | `src/games/quiz/` |
 
 Arcade Data 的两张表：
 
@@ -161,7 +196,7 @@ Arcade Data 的两张表：
 几个刻意的取舍：
 
 - **控制台内嵌一块「小电视」**。Console 右上角是一个 `16:9` 的 `/display/{code}` iframe，高约窗口 **36%**，宽度等比缩放；窄屏（< 64rem）时移到控制按钮下方、宽度撑满。**iframe 按大屏真实尺寸 `1920×1080` 布局，再用 `transform: scale(containerWidth / 1920)` 整体缩小**——所以看到的是「大屏画面被按比例压小」，而不是「网页被塞进小视口导致字特别大、溢出」。看不清字不重要，知道屏幕在显示什么才重要。用 iframe 而不是复用组件，是因为大屏有自己的 WS 连接和 zustand store，同页复用会两个屏幕抢同一份状态。iframe 设了 `pointer-events: none`——它是画面，不能抢控制台的点击。代价是多一个 WS 连接，以及**它比控制台快最多 2 秒**（大屏走 WS 即时，控制台 `GET /api/rooms` 2 秒轮询），极短节点上可能看到两处差一个节点。
-- **跳节点按 section 分组，不显示 1–13 的序号**。每个盒子是「这轮游戏」，里面是它的内容：`Hallucination → challenge / quiz / ranking`、`Data → challenge / quiz / ranking`、`Sabotage → challenge / ranking`、`Ultimate → quiz / ranking`，外加 `Welcome`、`Activity → ranking`（总榜占位）、`Wrap up`。操作员想的是「跳到 Sabotage 的挑战」，不是「跳到第 8 个节点」。分组由快照里的 `flow` 现场推导（`section` 或 `score` + `type`），**前端不硬编码流程**，改 `flow.py` 后按钮自动跟着变。
+- **跳节点按 section 分组，不显示 1–13 的序号**。每个盒子是「这轮游戏」，里面是它的内容：`Hallucination → opening / challenge / ranking`、`Data → opening / challenge / ranking`、`Sabotage → challenge / ranking`、`Ultimate → opening / quiz`，外加 `Welcome`、`Activity → ranking`（最终榜，垒箱子动效）、`Wrap up`。操作员想的是「跳到 Sabotage 的挑战」，不是「跳到第 8 个节点」。分组由快照里的 `flow` 现场推导（`section` 或 `score` + `type`），**前端不硬编码流程**，改 `flow.py` 后按钮自动跟着变。
 - **没有房间选择器**。房间是一次性的，**当前轮 = 唯一一个未关闭的房间**，操作员要操作的就是它，无需选择；上一场结束了就 `finish`，再 `new room` 开下一场。历史房间只作记录，不参与控制。
 - **只用表格**：房间和玩家都是整齐的数字列，卡片塞不下 Created / 参与人数 / 四个分项。
 - **房间只读 + 删除**：房间没有可编辑字段（code + 创建时间就是全部身份），所以 Rooms 表只有 `delete`；玩家仍可就地新增/编辑/删除（内联表单，不用弹窗），删除前 `confirm` 一次。分数仍然只能通过接口改 —— 改分比改名字危险得多。

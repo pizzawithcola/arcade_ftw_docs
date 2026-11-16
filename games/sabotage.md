@@ -1,6 +1,6 @@
 # Sabotage（AI Cyber Sabotage）
 
-> 📌 **本文档描述的是现行代码（v1）**：6 张共享攻击卡 + 6×6 效果矩阵 + 单选投票。
+> 📌 **历史存档：Sabotage v1**。当前实现为 v2（四轮、三维向量、共享预算、多卡组合投票），以 [`sabotage-v2.md`](./sabotage-v2.md) 为准；本文中的 v1 卡牌、分数与时长均不代表当前实现。
 > 下一版重构的设计草案见 [sabotage-v2.md](./sabotage-v2.md)（18 卡主题绑定 + 三维向量 + 主维度判定，**尚未实现**）。
 
 主流程第 8 个节点（`type: game`，`game: sabotage`，index 7，前面有 4 个游戏节点 + 3 个榜单节点）。
