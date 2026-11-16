@@ -81,8 +81,8 @@
 
 | 游戏 | 题目数 × 每题 | bonus 卡 | 节点时长 | 余量 |
 |---|---|---|---|---|
-| Hallucination | 3 × 30s = 90s | — | **90s** | 0s |
-| Ultimate Quiz | 3 × 25s = 75s | 2 × 3s = 6s | **84s** | 3s |
+| Hallucination | 3 × 25s = 75s | — | **75s** | 0s |
+| Ultimate Quiz | 3 × 28s = 84s | 2 × 3s = 6s | **93s** | 3s |
 
 > ⚠️ **改题目数量或 `time_limit` 时，必须同步改 `flow.py` 的 `duration_sec`。** 节点时长本身有测试守住（`tests/test_flow.py::test_question_nodes_outlast_their_questions`，要求 `duration_sec > intro_sec + questions × seconds_each`），但「抽几道」和「节点声明几道」仍是两处手写，改 slot 表时两边都要动。
 
@@ -92,7 +92,7 @@
 每一题都推晚，纯除法会把大屏和平板算岔。现在这一轮被表示成一串**分段**：
 
 ```
-[题1 25s][卡×2 3s][题2 25s][卡×3 3s][题3 25s]   = 81s
+[题1 28s][卡×2 3s][题2 28s][卡×3 3s][题3 28s]   = 90s
 ```
 
 `src/games/quiz/timeline.ts` 里是这份形状的唯一实现（`quizTimeline` / `sittingAt` /
