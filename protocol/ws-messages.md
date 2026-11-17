@@ -38,7 +38,7 @@ ws(s)://<host>/api/ws
   "phase": "waiting | playing | paused | finished",
   "index": 13,
   "node_count": 17,
-  "node": { "type": "quiz", "title": "Ultimate Quiz", "duration_sec": 93, "questions": 3, "seconds_each": 28, "answer_sec": 20, "score": "ultimate" },
+  "node": { "type": "quiz", "title": "Ultimate Showdown", "duration_sec": 93, "questions": 3, "seconds_each": 28, "answer_sec": 20, "score": "ultimate" },
   "flow": [ { "type": "intro", "title": "Welcome", "duration_sec": 10 }, "…整条 rundown…" ],
   "remaining_ms": 16780,
   "question": {
@@ -139,7 +139,7 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 { "type": "game",    "game": "sabotage",      "title": "AI Cyber Battle",         "duration_sec": 203, "score": "sabotage" }
 { "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle Standings", "duration_sec": 8, "requires": "sabotage" }
 { "type": "opening", "game": "ultimate_quiz", "title": "Ultimate Showdown", "duration_sec": 15, "title_sec": 3, "section": "ultimate" }
-{ "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 93, "questions": 3, "seconds_each": 28, "answer_sec": 20, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
+{ "type": "quiz",    "title": "Ultimate Showdown", "duration_sec": 93, "questions": 3, "seconds_each": 28, "answer_sec": 20, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
 { "type": "leaderboard", "section": "total",       "title": "Activity Leaderboard", "duration_sec": 10, "requires": "total" }
 { "type": "outro",   "title": "Wrap up",           "duration_sec": 10, "requires": "wrapup" }
 ```
