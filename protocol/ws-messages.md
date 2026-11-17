@@ -132,12 +132,12 @@ Sabotage 是唯一一个「主流程节点里还套着自己的时钟」的游�
 { "type": "intro",   "title": "Welcome",           "duration_sec": 10, "requires": "welcome" }
 { "type": "opening", "game": "hallucination", "title": "AI Hallucination", "duration_sec": 15, "title_sec": 3, "section": "hallucination" }
 { "type": "game",    "game": "hallucination", "title": "Hallucination", "duration_sec": 75, "questions": 3, "seconds_each": 25, "answer_sec": 15, "score": "hallucination" }
-{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination standings", "duration_sec": 5, "requires": "hallucination" }
+{ "type": "leaderboard", "section": "hallucination", "title": "Hallucination Standings", "duration_sec": 5, "requires": "hallucination" }
 { "type": "opening", "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 15, "title_sec": 3, "section": "data" }
 { "type": "game",    "game": "data_shadow",   "title": "Data Shadow",      "duration_sec": 60, "answer_sec": 50, "score": "data" }
-{ "type": "leaderboard", "section": "data",        "title": "Data Shadow standings", "duration_sec": 8, "requires": "data" }
+{ "type": "leaderboard", "section": "data",        "title": "Data Shadows Standings", "duration_sec": 8, "requires": "data" }
 { "type": "game",    "game": "sabotage",      "title": "AI Cyber Battle",         "duration_sec": 203, "score": "sabotage" }
-{ "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle standings", "duration_sec": 8, "requires": "sabotage" }
+{ "type": "leaderboard", "section": "sabotage",    "title": "AI Cyber Battle Standings", "duration_sec": 8, "requires": "sabotage" }
 { "type": "opening", "game": "ultimate_quiz", "title": "Ultimate Showdown", "duration_sec": 15, "title_sec": 3, "section": "ultimate" }
 { "type": "quiz",    "title": "Ultimate Quiz", "duration_sec": 93, "questions": 3, "seconds_each": 28, "answer_sec": 20, "bonus_intro_sec": 3, "bonus_questions": [2, 3], "score": "ultimate" }
 { "type": "leaderboard", "section": "total",       "title": "Activity Leaderboard", "duration_sec": 10, "requires": "total" }
