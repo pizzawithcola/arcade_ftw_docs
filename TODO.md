@@ -2,7 +2,7 @@
 
 > 唯一共享的任务清单。完成一项就勾掉并回补相关文档；新增项请写清**范围**与**验收标准**。
 >
-> 最后更新：2026-11-16（新增浅色主题计划，见 `architecture/theming.md`）
+> 最后更新：2026-11-17（P0 完成：token 收敛 + 后端开关；下一步 P1 玩家侧）
 
 ## 基线（已完成，不在待办内）
 
@@ -17,17 +17,18 @@
 - **榜单**：公开总榜 `/leaderboard`（前 10）+ 游戏内 section 榜（每个 section 结束后 5 秒，大屏+平板）+ 最终榜（`section: total`，垒箱子动效）
 - AWS 双栈部署、OIDC 零密钥 CI、CloudFront 同源
 
-## 0.5 浅色主题（计划，未动工）
+## 0.5 浅色主题（P0 已完成，P1 起待做）
 
-完整计划见 [`architecture/theming.md`](./architecture/theming.md)。摘要：
+完整计划与实施记录见 [`architecture/theming.md`](./architecture/theming.md)。现状：
 
-- 开关在后端 `app_settings.theme`（`dark` 默认 / `light`），全场统一；改完广播所有在线屏幕。
-- 浅色只在 `[data-theme='light']` 作用域下覆盖 token，**深色样式表一行不改**。
-- 动工前先补 9 个 token、替换 40 处硬编码颜色、解决「光晕/红底文字/`--c-black` 当暗色」三类问题。
-- 顺序：P0 地基 → P1 玩家侧 → P2 大屏侧 → P3 游戏内页 → P4 控制台（Battle 最后，可能不做）。
-- 验收单位是**页面**，每页改完与深色前后截图比对；e2e 继续跑在深色下。
+- ✅ **P0 地基**（2026-11-17 完成）：23 个 token 落地，40 处硬编码颜色清零，39 处红光 / 10 处红底文字 / 20 处阴影改走 token；后端 `app_settings.theme` + `broadcast_all` + WS `theme`；`data-theme` + 首屏防闪 + `color-scheme`；控制台顶栏开关。深色 15 屏截图比对无可见变化。
+- ⬜ **P1 玩家侧**：登录、`/play`、Welcome / Opening / WrapUp。
+- ⬜ **P2 大屏侧**：等待室榜、公开榜、`/display` 13 节点。
+- ⬜ **P3 游戏内页**：Hallucination、Data Shadow（帖子变白）、Ultimate。
+- ⬜ **P4 控制台**：控制台全页签、状态页；AI Cyber Battle 可选。
+- 铁律不变：深色样式表一行不改；e2e 继续跑深色；验收单位是**页面**。
 
-**下一步**：确认后从 P0 开始。
+**下一步**：P1，登录页与玩家屏。
 
 ## 1. 游戏分数接线（已完成）
 

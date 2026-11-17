@@ -51,11 +51,12 @@
 - **首屏防闪**：`index.html` 加一段内联脚本，在 hydration 之前从 `localStorage` 读出缓存值写到 `<html>`；随后 app 启动再向 `GET /api/settings` 覆写（服务端才是真相）。
 - 切主题：admin 写 `PUT /api/settings { theme }` → 后端广播 → 每台设备收到后改 `data-theme` 并写 localStorage。
 - `color-scheme` 跟随：`index.css`、`views/auth.css`、`pages/StatusPage.css` 三处的 `color-scheme: dark` 改为按主题取值（影响原生下拉、滚动条、表单控件）。
-- 临时预览：`?theme=light` 只改本机，不写服务端（给设计评审用）。
+- 缓存键：`localStorage['arcade_ftw_theme']`，只存最后一次已知值，服务端仍然是真相。
+- **不做** `?theme=` 临时参数：Design 页的预览直接在自己容器上写 `data-theme="light"`，用的是同一套规则，不需要第二套机制。
 
 ### 2.3 覆盖层组织（关键）
 
-浅色的所有规则集中在 `src/design/theme-light.css`，一个文件、一个作用域：
+浅色的所有规则集中在 `src/design/light.css`，一个文件、一个作用域：
 
 ```css
 [data-theme='light'] { /* token 重映射 */ }
@@ -70,16 +71,27 @@
 
 现状：`var(--c-*)` 引用 **951 处**，硬编码颜色约 **40 处**。这 40 处不收敛，浅色就一定会漏。
 
-### 3.1 新增 token（先补，再改页面）
+### 3.1 新增 token（P0 已完成，实际落了 23 个）
 
-| 新 token | 用途 | 深色值 | 浅色值 |
+每个 token 都是**一个颜色**，不是「带透明的颜色」：规则自己写 `color-mix(in srgb, var(--c-glow) 70%, transparent)` 保留各自的浓度。这样浅色只要把 token 本身设成 `transparent`，七十处光晕就一起消失，不用逐条改。
+
+| token | 用途 | 深色值 | 浅色值 |
 |---|---|---|---|
 | `--c-on-brand` | 压在品牌红上的文字 | `#f4f4f6` | `#ffffff` |
-| `--c-shadow` | 所有投影的「暗色」 | `rgba(0,0,0,0.55)` | `rgba(26,22,20,0.12)` |
-| `--c-well` | 面板里更深的「槽」（滑杆槽、进度槽） | `#070707` | `#eae6e1` |
-| `--c-scrim` | 遮罩/压暗层 | `rgba(0,0,0,0.55)` | `rgba(255,255,255,0.6)` |
-| `--c-glow` | 发光色（替代散落的 rgba 红） | `rgba(219,0,17,0.85)` | `transparent` |
-| `--c-cat-*` (6 个) | 题库分类色 | 现有 6 色 | 同色相加深 |
+| `--c-shadow` | 所有投影、内阴影、扫描线 | `#000000` | `#1a1614` |
+| `--c-scrim` | 遮罩/压暗层 | `#000000` | `#ffffff` |
+| `--c-well` | 凹陷：输入框、滑杆槽、徽章、预览屏 | `#000000` | `#eae6e1` |
+| `--c-glow` | 红光的本色 | `#db0011` | `transparent` |
+| `--c-glow-deep` | 标题背后的深红洗色 | `#af000e` | `transparent` |
+| `--c-halo` | 白色光晕（小标记的可读性） | `#f4f4f6` | `transparent` |
+| `--c-spark` | 亮线的白热核心 | `#ffffff` | `#ffffff` |
+| `--c-doubt` / `-pale` | 滑杆「怀疑」侧 | `#f2a900` / `#ffe27a` | `#8a5a00` / `#f6e2b0` |
+| `--c-trust` / `-pale` | 滑杆「信任」侧 | `#12b35c` / `#a8f5c8` | `#0f7a43` / `#b7e8cd` |
+| `--c-cat-*` (6 组) + `-ink` | 题库分类徽章 | 现有 6 色 | 同色相加深 |
+
+`color-scheme` 也跟着走：`:root { color-scheme: dark }` 放在 `tokens.css`，`[data-theme='light']` 里写 `light`，同元素、后者胜。**页内样式表不许再写 `:root { color-scheme }`**——`StatusPage.css` 曾经这么写，`inherit` 会把整站钉回 `normal`。
+
+页面网格（`--c-grid-line`）在浅色下取 `transparent`：纸上是方格纸的感觉，不是这台机器的质感。
 
 ### 3.2 硬编码清单（逐个替换）
 
@@ -125,7 +137,7 @@
 
 | 阶段 | 内容 | 产出 | 完成标志 |
 |---|---|---|---|
-| **P0 地基** | 新增 9 个 token；替换 40 处硬编码；解决三类系统性问题；后端 `theme` 键 + 广播；`data-theme` + 防闪 + `color-scheme` + admin 开关 | 开关可用、深色零变化 | 深色截图与改动前逐像素一致；e2e 全绿 |
+| **P0 地基** ✅ | 23 个 token；40 处硬编码清零；39 处红光/10 处红底文字/20 处阴影改走 token；后端 `theme` 键 + `broadcast_all` + WS `theme`；`data-theme` + 防闪 + `color-scheme` + 控制台顶栏开关 | 开关可用、深色零变化 | 深色 15 屏截图比对；pytest 206、e2e 全绿 |
 | **P1 玩家侧** | 页面 1、2、9 | iPad 全流程 | 逐页截图评审 |
 | **P2 大屏侧** | 页面 3、4 | 大屏全节点 | 13 节点截图 |
 | **P3 游戏内页** | 页面 5、6、8 | 三个游戏 | 关键态截图 |
@@ -166,3 +178,27 @@
 - 预览实现：`arcade_ftw_fe/src/views/admin/LightPreview.{tsx,css}`
 - 设置存储：`arcade_ftw_be/app/settings_store.py`
 - 视图形状：`architecture/views.md`
+
+---
+
+## 9. P0 实施记录（2026-11-17）
+
+**改动落点**
+
+| 层 | 文件 | 内容 |
+|---|---|---|
+| token | `src/design/tokens.css` | 23 个新 token + `:root { color-scheme: dark }` |
+| 覆盖层 | `src/design/light.css` | 作用域从 `.theme-light` 改成 `[data-theme='light']`，补 roles / leans / 分类色，网格关闭 |
+| 应用 | `src/theme.ts` | `applyTheme` / `readStoredTheme`，键 `arcade_ftw_theme` |
+| 首屏 | `index.html` | 内联脚本按 localStorage 提前写 `data-theme` |
+| 分发 | `src/store/gameStore.ts` | `applyMessage` 收 `{type:'theme'}`，大屏、iPad、状态页同一个入口 |
+| 控制台 | `src/views/admin/AdminPage.tsx` + `.css` | 顶栏 `ThemeSwitch`（dark / light 两态），写入即广播 |
+| 预览 | `src/views/admin/LightPreview.tsx` | 容器改用 `data-theme="light"`，与真实实现同一套规则 |
+| 后端 | `app/settings_store.py` | `theme` 键、`read_theme`、422 校验、保存后 `broadcast_all` |
+| 后端 | `app/manager.py` / `app/ws.py` | `broadcast_all`；连接建立时先发 `theme` 再发 `state` |
+
+**深色零变化的证据**：15 屏（大屏 9 节点 + iPad 3 态 + 登录 + 公开榜 + 控制台）改动前后截图比对，逐像素差异最大 `2/255`、涉及 2.5% 的像素（`color-mix` 的取整），另加滑杆槽 `#070707 → #000000` 一处刻意的合并。比对脚本会遮掉三处天然不稳定的区域：大屏时钟、iPad 计时器、控制台里那块实时预览 iframe。
+
+**踩到的坑**：`StatusPage.css` 顶上有一条 `:root { color-scheme: dark }`，改成 `inherit` 后会把整站钉在 `normal`（`inherit` 在根元素等于初始值），所以 `color-scheme` 现在只由 token 层拥有。
+
+**P0 结束时浅色的样子**：结构对了、颜色对了，但页面级排版还没调——例如大屏的扫描线纹理在纸上过密、部分深红色块偏重。这些是 P1–P4 的内容，不是 P0 的缺陷。
