@@ -108,4 +108,4 @@ elapsed     = durationMs - remainingMs
 - **揭晓是每题即时、各设备独立显示**的；当前没有汇总全场答案后再统一揭晓的机制。
 - **超时 = 未作答 = 0 分**，并直接进入揭晓（显示 `Time's up`）。这样一块没人操作的屏幕不会让整场演出停摆。
 
-> ⚠️ **节点时长必须覆盖题目周期**，否则引擎会在玩家答完前切走节点。当前 3 × 25s（15s 抢答 + 10s review）= 75s，节点也是 **75s**（`closing_sec: 0`）；第三题的 review 结束后紧跟 5 秒分节榜。review 的 10 秒里大屏切到本节实时榜，平板读答案。改题目数量、`seconds_each` 或 `answer_sec` 时**必须同步改 `flow.py` 的 `duration_sec`**；`tests/test_flow.py::test_question_nodes_outlast_their_questions` 会校验时长下限。
+> ⚠️ **节点时长必须覆盖题目周期**，否则引擎会在玩家答完前切走节点。当前 3 × 30s（20s 抢答 + 10s review）= 90s，节点也是 **90s**（`closing_sec: 0`）；第三题的 review 结束后紧跟 5 秒分节榜。review 的 10 秒里大屏切到本节实时榜，平板读答案。改题目数量、`seconds_each` 或 `answer_sec` 时**必须同步改 `flow.py` 的 `duration_sec`**；`tests/test_flow.py::test_question_nodes_outlast_their_questions` 会校验时长下限。

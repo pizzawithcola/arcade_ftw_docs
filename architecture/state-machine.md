@@ -44,7 +44,7 @@
 
 引擎状态机只管节点流转；**房间**还有一层生命周期，两者是分离的：
 
-1. `POST /api/rooms` 建新房间 → `waiting`（`closed_at IS NULL`）。
+1. `POST /api/rooms` 建新房间 → `waiting`（`closed_at IS NULL`）。**建新房会先关掉所有还开着的房间**（同 `finish` 的收尾：写 `closed_at`、清成员 `room_code` / `team`），保证任何时刻最多只有一个开放房间——否则控制台会同时列出多个房间，`current` 只能靠时间戳裁决，隔夜留下的排练房会活过它所属的那场活动。
 2. `finish` → 引擎到 `finished`，**同时**把 `rooms.closed_at` 写为当前时间、把该房间成员的 `room_code` / `team` 清空。房间从此是**历史**。
 3. 关闭后对同一房间再按 `start` → **409 `room is closed; create a new room`**，而不是状态机里的「→ playing」——状态机那张表只描述引擎，API 层会先拦下关闭的房间。
 4. 下一轮 = `new room`（新的 `R-001`），与旧房间完全无关；参与历史留在 `room_participants`。
