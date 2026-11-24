@@ -182,8 +182,9 @@
 
 | 分区 | 内容 | 数据来源 |
 |---|---|---|
-| **Arcade Console** | 单个控制面板，两行布局：**上行**左侧竖排 `start/pause/resume/finish/reset`、右侧 **16:9 的大屏实时预览**（`/display/{code}` 内嵌 iframe，高度约窗口 40%）；**下行**是按 section 分组的跳节点按钮 | `GET /api/rooms`（2s 轮询，快照带 `flow`）+ iframe 自己的 WS |
+| **Arcade Console** | 单个控制面板：**Show control**（`start/pause/resume/finish/reset` + **16:9 的大屏实时预览**，`/display/{code}` 内嵌 iframe，高度约窗口 40%）→ 分隔线 → **Leaderboard Event** 切换（`All events` / 单个活动，决定大屏、等待室与公开榜排哪个活动）→ 分隔线 → **Node Control**（按 section 分组的跳节点按钮） | `GET /api/rooms`（2s 轮询，快照带 `flow`）+ iframe 自己的 WS + `GET/PUT /api/settings` |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
+| **Event Report** | **只读**报表：六张卡片（Registered / Played / Average / Best / Rounds / Joins）、Games（含平均分占满分的比例条）、Played per day、三场活动横向对比、前 10 榜单 | `GET /api/events`、`GET /api/events/{key}/summary`、`GET /api/events/{key}/leaderboard`（10s 轮询；横向对比顺带拉全部活动的 summary） |
 | **Game Setting** | 只读展示 Ultimate Quiz 的抽题规则与完整题库；题库目前在前端维护 | `src/games/quiz/` |
 
 Arcade Data 的两张表：
@@ -202,10 +203,11 @@ Arcade Data 的两张表：
 - **房间只读 + 删除**：房间没有可编辑字段（code + 创建时间就是全部身份），所以 Rooms 表只有 `delete`；玩家仍可就地新增/编辑/删除（内联表单，不用弹窗），删除前 `confirm` 一次。分数仍然只能通过接口改 —— 改分比改名字危险得多。
 - **令牌失效会退回登录**：轮询拿到 401 时面板/大屏回到登录页，而不是静默停止更新。
 - **玩家表按分区打开才轮询**：名单没人看的时候不该每秒查一次库。
+- **「排哪个活动」是控制，不是过滤**。它写在服务端 `settings.active_event`，改它等于改大屏、等待室和公开榜的内容，所以它和演出控制放在一起（Console 的 **Leaderboard Event**）。**Event Report 只读**，它自己的活动切换只决定这一页看谁，不影响任何屏幕——报表在演出中可以被随手打开看上一场。
 - **窄屏（< 52rem）时侧边栏变成一行 tab**，宽屏是 12rem 侧栏 + 内容区；表格在窄屏内横向滚动，不撑破页面。
 - 分区状态**不持久化**，刷新回到 Console——操作员最常用的还是控制台。
 
-### Event Control 的报表口径
+### Event Report 的报表口径
 
 `GET /api/events/{key}/summary` 同时给两个人数，**它们回答的是不同的问题**：
 
