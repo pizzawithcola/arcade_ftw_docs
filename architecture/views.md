@@ -184,7 +184,9 @@
 |---|---|---|
 | **Arcade Console** | 单个控制面板：**Show control**（`start/pause/resume/finish/reset` + **16:9 的大屏实时预览**，`/display/{code}` 内嵌 iframe，高度约窗口 40%）→ 分隔线 → **Leaderboard Event** 切换（`All events` / 单个活动，决定大屏、等待室与公开榜排哪个活动）→ 分隔线 → **Node Control**（按 section 分组的跳节点按钮） | `GET /api/rooms`（2s 轮询，快照带 `flow`）+ iframe 自己的 WS + `GET/PUT /api/settings` |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
-| **Event Report** | **只读**报表：六张卡片（Registered / Played / Average / Best / Rounds / Joins）、Games（含平均分占满分的比例条）、Played per day、三场活动横向对比、前 10 榜单 | `GET /api/events`、`GET /api/events/{key}/summary`、`GET /api/events/{key}/leaderboard`（10s 轮询；横向对比顺带拉全部活动的 summary） |
+| **Event Report** | **只读**报表：tab 顺序是 **Arcade 1.0 - UAE AI Connect**（归档，第一个）→ **All-time Summary**（伪活动 `all`，只合计 2.0 的三个活动）→ 每个 2.0 活动一个；六张卡片（Registered / Played / Rounds / **Size** / Average / Best；Size 是每场人数、副行写 entries；**Average / Best 带括号百分比**，如 `949.6 (34%)`）；**每个区块都是一张卡片**（表格、图表、榜单都不裸放在背景上），表头与单元格一律**左对齐**；**每份报告顶部有一行标题**（`report__title`：`Arcade 2.0 - Hong Kong Fintech Week (Nov. 2-3)`，由后端 `title` 字段给出）；
+**tab 用短名**（`tab` 字段：`UAE AI Connect` / `All Arcade 2.0` / `HK FTW` / `HK Employee` / `SG FTF`），因为五个 tab 要挤一行；
+最右端有一个 **`download`** 按钮；Played **per day**（单场活动）/ **per event**（All-time）、Games、前 10 榜单（单场活动才有） | `GET /api/events`（归档行在最前并带 `source`，其后是 `all`）、`GET /api/events/{key}/summary`、`GET /api/events/{key}/leaderboard`、`GET /api/events/{key}/archive`（10s 轮询） |
 | **Game Setting** | 只读展示 Ultimate Quiz 的抽题规则与完整题库；题库目前在前端维护 | `src/games/quiz/` |
 
 Arcade Data 的两张表：
@@ -220,11 +222,82 @@ Arcade Data 的两张表：
 `played` 的判据刻意**不是** `total_score > 0`：答完整场却一题没对的人也是玩了的人。
 两者的差（`played - scored`）说明这一轮**跑过但没给分**；`players - played` 才是「注册了没玩」。
 
-每日桶 `registrations_per_day` 里同时带 `count` 和 `played`；报表上的柱状图**画的是 `played`**，
+每日桶 `registrations_per_day` 里同时带 `count` 和 `played`；**只保留活动举办区间内的日期**（`app/events.py` 的 `start`/`end`）——
+签到会在活动前后零星出现（排练、测试账号），不裁剪的话「11-02~11-03 的活动」图上会出现 11-11 的柱子，读成活动办了十天。
+人数卡片仍然算上区间外的签到（它们确实存在），求和因此可能大于柱子之和。报表上的条形图**实心条画的是 `played`**（浅色底条是当天 `count`），
 因为活动关心的是每天真实上场的人数，不是注册量。
 
 报表里**没有任何玩家数据的游戏不显示**（行和列都不显示）：没玩的游戏是「模块没开」，
 不是「0 分」，后者是更糟也更错误的说法。
+
+### `all`：All-time Summary
+
+`all` 是**报表专用的伪活动**，不在 `EVENTS` 里，登录下拉框永远不会出现，`players.event` 也不会写成 `all`。
+
+- **人数与场次**：`player` 行按 `(event, nickname)` 唯一，所以同一个人在两地登录算**两次签名**；
+  「All-time Summary 的 Registered」读作**累计签到人次**，不是自然人去重后的人数。
+- **场次可以相加**：每场房间先归属到唯一一个活动再计数，所以跨活动求和不会重复计一场。
+- **榜单按昵称合并**：同一个昵称在两地各有一行分数，All-time 榜**合并成一个人**（分数与各游戏分相加）；
+  单个活动的榜仍然分开，因为那是两场各自的成绩。
+- 前端默认打开 `all`（除非上次手动选过别的活动）。
+
+### Arcade 1.0 归档活动
+
+`uae_ai_connect` 是在旧系统（`cyber_ai_festival_be`）上跑的活动，**不属于 `EVENTS`**，
+登录下拉框永远不会出现，`players.event` 也不会出现这个值。
+
+- **为什么单独一页**：旧系统是 **5 个游戏各 0–100 分**、总分约 500 带小数；本系统是 **4 段 600/800/800/600**、满分 **2800**（只跑 3 段的新加坡是 2000）。
+  两套分数**相加、求平均、同榜排序都不成立**，所以归档活动**不进 All-time 汇总、不进横向对比表**。
+- **数据来源**：旧系统只读接口 `GET /events/{id}/report` 的响应，原样存在
+  `arcade_ftw_be/app/data/legacy_uae_ai_connect.json`，由 `app/archive.py` 转成页面用的形状。
+  旧系统的 `/rankings`、`/users/userscores` 只按 current event 过滤，**要拿逐人全量必须切它的 current event——那是改生产状态，不做**。
+  所以 UAE 只有 **Top 10**（旧导出本身就只有十名），页面上的 `leaderboard_note` 写明了这一点。
+- **接口**：`GET /api/events/{key}/archive` 返回归档形状（`headline` / 5 个游戏 / top10 / 国家分布）；
+  对归档 key 调 `/summary` 或 `/leaderboard` 返回 **404** 并提示去 archive 端点，避免出现「0 人的活动」这种更糟的读法。
+- **现状**：UAE 93 人签到 / 69 人实际游玩 / 7 个国家 / 29 场 Ultimate Showdown / 382 次作答。
+- **标题**：`Arcade 2.0 - <活动名> (<日期>)` / `Arcade 2.0 - Overall Summary` / `Arcade 1.0 - UAE AI Connect (Sep. 29-30)`。
+  标题下还有一行**场地事实**（`report__facts`）：`1 booth · 3 days · 3 games · 5 mins per round`，
+  UAE 是 `2 rooms · 2 days · 5 games · 30 mins per round`（旧活动是两个游戏房，新的是单个展位）。
+  日期来自 `app/events.py` 的 `dates` 与 `archive.ARCHIVE_DATES` 两个**事实表**，不是从 `players.created_at` 推的——
+  生产上 HK 那两场在活动日期之外还有零星签到（11-04 / 11-05 / 11-11 有测试与排练账号），推出来的区间会和实际办活动的日子不符。
+- **国家画饼图、每日画横向条形图，两者同一行**（`.report__pair`，一张卡片一张图）；
+  饼图是纯 CSS `conic-gradient` + 图例，**不引图表库**——七个扇区不值得多一个依赖。
+  扇区用**多色阶**（`--report-pie-1..8`，红/琥珀/青/靛/紫/绿/灰/粉）：一整个红色阶里的八个深浅是同一种红，
+  读到第四块就只能靠猜；这是本页唯一允许离开品牌红的地方。
+- **图表有 140px 的最低高度并纵向居中**（`.report__chart`）：只有一天数据时，卡片会塌到只剩标题那么高，
+  切 tab 时整行卡片的高度跟着跳。这个地板保证「一天」和「二十天」占一样的位置。
+- **页面顶部那行**（`Arcade 1.0 · AI Cyber Arcade for UAE AI Connect - 2 rooms, 3 days, 5 games`）来自
+  `ARCHIVE_FACTS` + `ARCHIVE_DATES`，**不是从导出里推的**：`showdown.rooms`(29) 是游戏房间不是场地房间，导出里的签到只有两天而活动办了三天。
+  从 JSON 推会推出两个错的数字。
+
+> 报表**没有跨活动对比表**了：三场 2.0 活动的题面与满分一致，比较已经在 All-time 汇总里完成；
+> 而 1.0 的分数与 2.0 不可比，硬排在一张表里只会制造误读。
+
+### Download：一份 A4 一份报告
+
+`download` 把**全部五份报告**渲染成一份独立 HTML（`EventReportPrint.ts`），塞进一个 794×1123 的离屏 iframe，再调 `iframe.contentWindow.print()`；
+在打印对话框里选「另存为 PDF」就是 A4 文件。
+
+- **一页一份报告，顺序 = tab 顺序**：`.page { page-break-after: always }`，标题逐字取自后端 `title`。
+- **打印样式独立**（不借用 console 的深色样式表），否则打出来是一片黑。
+- **不引 PDF 库**：浏览器自带的分页与可选文本已经够用，引库等于多一个依赖、多一套表格样式和一个字体问题。
+- **页面高度有测试兜底**：e2e 里把 `print` 替换成快照，断言 5 个 `<h1>` 的顺序，并断言每页高度 ≤ 1017px（A4 297mm 减上下各 14mm）。
+
+### All-time 与其他活动页的差别
+
+| | 单场活动 | All-time |
+|---|---|---|
+| 第二个区块 | `Played per day`（按天） | `Played per event`（按活动，实心条=played、浅底=注册） |
+| Games | `Game / Players / Average / Best`，数值写成 `324.5 / 600` | `Game / Total Avg / HK Fintech Avg / HK Employee Avg / SG Fintech Avg`，没人碰过的格子是 `—` 不是 `0` |
+| 末尾 | 前 10 榜单 | **`Score distribution`**（**相对分**分档：`0` / `1–20%` / … / `81–100%`） |
+
+- All-time **不请求榜单**（少一个请求），因为把三场的人排在一张前十表里没有可操作性。
+- 分布只数**玩过的人**，`0` 单独一档：「答了但一分没得」是结论，不是区间下界。
+- **档位是相对分，不是绝对分**：各场跑的游戏数不同，满分也不同（`app/events.py` 的 `modules` 决定：
+  香港 4 段 = **2800**，新加坡 3 段 = **2000**）。用绝对分会把「新加坡满分」和「香港 71%」放进同一档。
+  每行的分母取**该玩家自己那场的满分**，所以 81–100% 就是「这一晚打得近乎完美」。
+- 平均分与中位数看不出「有没有把人分开」，两场平均分一样的活动可能完全不像——分档才看得出。
+- 后端在 `all` 的 summary 里多给 `by_event`（每场的 players/played/各游戏平均）与 `distribution`，其它活动不带这两项，页面按有没有来切换形状。
 
 ## 令牌与角色
 
