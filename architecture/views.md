@@ -184,7 +184,7 @@
 |---|---|---|
 | **Arcade Console** | 单个控制面板：**Show control**（`start/pause/resume/finish/reset` + **16:9 的大屏实时预览**，`/display/{code}` 内嵌 iframe，高度约窗口 40%）→ 分隔线 → **Leaderboard Event** 切换（`All events` / 单个活动，决定大屏、等待室与公开榜排哪个活动）→ 分隔线 → **Node Control**（按 section 分组的跳节点按钮） | `GET /api/rooms`（2s 轮询，快照带 `flow`）+ iframe 自己的 WS + `GET/PUT /api/settings` |
 | **Arcade Data** | 一个 `Rooms / Players` **切换**，两边都是表格；Rooms 是纯历史（只读 + 删除），Players 带 `+ new player` 与每行的 `edit / delete` | `GET /api/rooms` + `GET /api/players?room=`（**仅此分区打开时** 3s 轮询） |
-| **Event Report** | **只读**报表：tab 顺序是 **Arcade 1.0 - UAE AI Connect**（归档，第一个）→ **All-time Summary**（伪活动 `all`，只合计 2.0 的三个活动）→ 每个 2.0 活动一个；六张卡片（Registered / Played / Rounds / **Size** / Average / Best；Size 是每场人数、副行写 entries；**Average / Best 带括号百分比**，如 `949.6 (34%)`）；**每个区块都是一张卡片**（表格、图表、榜单都不裸放在背景上），表头与单元格一律**左对齐**；**每份报告顶部有一行标题**（`report__title`：`Arcade 2.0 - Hong Kong Fintech Week (Nov. 2-3)`，由后端 `title` 字段给出）；
+| **Event Report** | **只读**报表：tab 顺序是 **Arcade 1.0 - UAE AI Connect**（归档，第一个）→ **All-time Summary**（伪活动 `all`，只合计 2.0 的三个活动）→ 每个 2.0 活动一个；六张卡片（Registered / Played / Rounds / **Size** / Average / Best；Size 是每场人数；**Average / Best 带括号百分比**，如 `949.6 (34%)`）；**卡片只有标签和数字**，没有任何副行说明；**每个区块都是一张卡片**（表格、图表、榜单都不裸放在背景上），表头与单元格一律**左对齐**；**每份报告顶部有一行标题**（`report__title`：`Arcade 2.0 - Hong Kong Fintech Week (Nov. 2-3)`，由后端 `title` 字段给出）；
 **tab 用短名**（`tab` 字段：`UAE AI Connect` / `All Arcade 2.0` / `HK FTW` / `HK Employee` / `SG FTF`），因为五个 tab 要挤一行；
 最右端有一个 **`download`** 按钮；Played **per day**（单场活动）/ **per event**（All-time）、Games、前 10 榜单（单场活动才有） | `GET /api/events`（归档行在最前并带 `source`，其后是 `all`）、`GET /api/events/{key}/summary`、`GET /api/events/{key}/leaderboard`、`GET /api/events/{key}/archive`（10s 轮询） |
 | **Game Setting** | 只读展示 Ultimate Quiz 的抽题规则与完整题库；题库目前在前端维护 | `src/games/quiz/` |
@@ -275,13 +275,20 @@ Arcade Data 的两张表：
 
 ### Download：一份 A4 一份报告
 
-`download` 把**全部五份报告**渲染成一份独立 HTML（`EventReportPrint.ts`），塞进一个 794×1123 的离屏 iframe，再调 `iframe.contentWindow.print()`；
+`download` 把**全部五份报告**渲染成一份独立 HTML（`EventReportPrint.ts`），塞进一个 186mm×269mm 的离屏 iframe，再调 `iframe.contentWindow.print()`；
 在打印对话框里选「另存为 PDF」就是 A4 文件。
 
 - **一页一份报告，顺序 = tab 顺序**：`.page { page-break-after: always }`，标题逐字取自后端 `title`。
+- 单场活动页**带前 10 榜单**；All-time 页换成分布（跨三场的前十名单没有可操作性）。
+- **卡片与屏幕同版**：只有 label + 数值，没有解释行。卡片用 `grid` + `repeat(6, minmax(0, 1fr))`，**不用 flex**——flex 项的 min-content 宽度会把「991.5 (45%)」这样的长值顶开，最后一张卡的右边框就跑到纸外了（e2e 断言每页最后一张卡不越界）。
+- **iframe 是「可打印区」不是「纸面」**：A4 210mm 减 `@page` 左右各 12mm 后内容区只有 186mm（约 703px）。iframe 若设成 794px（整张纸宽），打印时内容被压到 703px，右对齐的卡片和饼图就会被裁——测量与纸面不一致，所有「无溢出」结论都是假的。
+- **All-time 页也带饼图与竖柱**：`Played per event` 右侧是 SVG 环形图（左饼右图例，`stroke-dasharray` 画，不用 conic-gradient，打印引擎口径不一；**圆心半径 38 + 线宽 20**，外径 48 必须 < viewBox 的 50，否则圆环四边被画布削平成八角）；`Score distribution` 右侧是 11 根红柱（标签 0/10/…/100）。
+- **空的日报块不打印表头**：没有签到落在活动区间内时输出一句说明，而不是一个空标题。
+- **必须 `print-color-adjust: exact`**：Chrome 打印对话框默认「背景图形」关闭，所有 `background` 都不打印——横条、图例圆点、竖柱会整片消失（SVG `stroke` 画的圆环反而还在，很容易误判成「只有饼图正常」）。
+- **`body` 留 2mm 内缩**：子元素都是流式 100% 宽，卡片右边框会正好落在内容区边界上，被页面盒裁掉一半。内缩后边框距纸边约 2mm，e2e 断言这个距离为负（`<= -1`），不只看「没越界」。
 - **打印样式独立**（不借用 console 的深色样式表），否则打出来是一片黑。
 - **不引 PDF 库**：浏览器自带的分页与可选文本已经够用，引库等于多一个依赖、多一套表格样式和一个字体问题。
-- **页面高度有测试兜底**：e2e 里把 `print` 替换成快照，断言 5 个 `<h1>` 的顺序，并断言每页高度 ≤ 1017px（A4 297mm 减上下各 14mm）。
+- **页面高度有测试兜底**：e2e 里把 `print` 替换成快照，断言 5 个 `<h1>` 的顺序，并断言每页高度 ≤ 1017px（A4 297mm 减上下各 14mm）、卡片无解释行、最后一张卡不越界、竖柱只出现在 All-time。
 
 ### All-time 与其他活动页的差别
 
@@ -289,10 +296,15 @@ Arcade Data 的两张表：
 |---|---|---|
 | 第二个区块 | `Played per day`（按天） | `Played per event`（按活动，实心条=played、浅底=注册） |
 | Games | `Game / Players / Average / Best`，数值写成 `324.5 / 600` | `Game / Total Avg / HK Fintech Avg / HK Employee Avg / SG Fintech Avg`，没人碰过的格子是 `—` 不是 `0` |
-| 末尾 | 前 10 榜单 | **`Score distribution`**（**相对分**分档：`0` / `1–20%` / … / `81–100%`） |
+| 第二个区块右边 | — | 同一个数字的**饼图**（谁占了多少人） |
+| 末尾 | 前 10 榜单 | **`Score distribution`**（**相对分**分档，**10% 一档**：`0` / `1–10%` / … / `91–100%`），左边横条 + 右边竖柱 |
 
 - All-time **不请求榜单**（少一个请求），因为把三场的人排在一张前十表里没有可操作性。
 - 分布只数**玩过的人**，`0` 单独一档：「答了但一分没得」是结论，不是区间下界。
+- **10% 一档**（11 个柱子）：五档画出来是阶梯，十档才像分布。
+- 同一组数画两遍是刻意的：左横条给准确值，右竖柱给形状。竖柱的**横轴标签是 0/10/…/100 的区间上界**（不写区间本身）：竖排的 `1–10` 会把连字符摆在行首，看起来像负数。
+- UAE 归档页的日报块也叫 `Played per day` 并带 `DAY / SIGN-UPS` 表头，但**画的是签到**——
+  1.0 的导出没有按天作答数据，副标题直接写明这一点。
 - **档位是相对分，不是绝对分**：各场跑的游戏数不同，满分也不同（`app/events.py` 的 `modules` 决定：
   香港 4 段 = **2800**，新加坡 3 段 = **2000**）。用绝对分会把「新加坡满分」和「香港 71%」放进同一档。
   每行的分母取**该玩家自己那场的满分**，所以 81–100% 就是「这一晚打得近乎完美」。
