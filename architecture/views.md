@@ -256,8 +256,11 @@ Arcade Data 的两张表：
   对归档 key 调 `/summary` 或 `/leaderboard` 返回 **404** 并提示去 archive 端点，避免出现「0 人的活动」这种更糟的读法。
 - **现状**：UAE 93 人签到 / 69 人实际游玩 / 7 个国家 / 29 场 Ultimate Showdown / 382 次作答。
 - **标题**：`Arcade 2.0 - <活动名> (<日期>)` / `Arcade 2.0 - Overall Summary` / `Arcade 1.0 - UAE AI Connect (Sep. 29-30)`。
-  标题下还有一行**场地事实**（`report__facts`）：`1 booth · 3 days · 3 games · 5 mins per round`，
-  UAE 是 `2 rooms · 2 days · 5 games · 30 mins per round`（旧活动是两个游戏房，新的是单个展位）。
+  标题下还有一行**场地事实**（`report__facts`）：`1 booth · 3 days · 3 games · 5 mins per round · 2,000 points in total`，
+  UAE 是 `2 rooms · 2 days · 5 games · 30 mins per round · 500 points in total`（旧活动是两个游戏房，新的是单个展位）。
+  末段的**总分**由 `app.events.points(key)` 从该活动的 `modules` 求和得出（HK 2,800 / SG 2,000），
+  1.0 归档由 `ARCHIVE_FACTS` 的 games × `LEGACY_GAME_MAX`(100) 得出（500）——都是算出来的，不手打，
+  所以砍掉一个游戏时这句话会跟着变。
   日期来自 `app/events.py` 的 `dates` 与 `archive.ARCHIVE_DATES` 两个**事实表**，不是从 `players.created_at` 推的——
   生产上 HK 那两场在活动日期之外还有零星签到（11-04 / 11-05 / 11-11 有测试与排练账号），推出来的区间会和实际办活动的日子不符。
 - **国家画饼图、每日画横向条形图，两者同一行**（`.report__pair`，一张卡片一张图）；
