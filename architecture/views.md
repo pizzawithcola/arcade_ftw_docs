@@ -297,6 +297,7 @@ Arcade Data 的两张表：
 | 第二个区块 | `Played per day`（按天） | `Played per event`（按活动，实心条=played、浅底=注册） |
 | Games | `Game / Players / Average / Best`，数值写成 `324.5 / 600` | `Game / Total Avg / HK Fintech Avg / HK Employee Avg / SG Fintech Avg`，没人碰过的格子是 `—` 不是 `0` |
 | 第二个区块右边 | — | 同一个数字的**饼图**（谁占了多少人） |
+| 卡片数值字号 | 屏幕 `clamp(0.75rem, 13cqw, 1.2rem)`（随卡片宽度缩放，窄控制台也能单行放下 `2,000 (100%)`）；打印固定 10pt |
 | 末尾 | 前 10 榜单 | **`Score distribution`**（**相对分**分档，**10% 一档**：`0` / `1–10%` / … / `91–100%`），左边横条 + 右边竖柱 |
 
 - All-time **不请求榜单**（少一个请求），因为把三场的人排在一张前十表里没有可操作性。
